@@ -14,7 +14,7 @@ StobaeusVoice is a **voice-first cardiac documentation platform** built specific
 
 ## Wireframes
 
-All 14 screens are in `StobaeusVoice Wireframes.html`. Open it in a browser to view the full design canvas.
+All 14 screens are in `design/StobaeusVoice Wireframes.html`. Open it in a browser to view the full design canvas.
 
 **Screen inventory:**
 | # | Screen | Role |
@@ -41,15 +41,15 @@ All 14 screens are in `StobaeusVoice Wireframes.html`. Open it in a browser to v
 - Sidebar: 200px, always present, `StobaeusVoice` branding
 - All screens share same 3-column shell: sidebar + main + right panel
 
-**Wireframe files:**
-- `StobaeusVoice Wireframes.html` — entry point (React via CDN)
-- `wf-screens-a.jsx` — screens 1–7
-- `wf-screens-b.jsx` — screens 8–14
-- `wf-shell.jsx` — shared Sidebar, ScreenFrame, PageHead, Stat, ChartLine, Waveform, Avatar
-- `icons.jsx` — Lucide-style SVG icon library
-- `wf-app.jsx` — canvas assembly, tweak system
-- `design-canvas.jsx` — pan/zoom design canvas
-- `tweaks-panel.jsx` — fidelity/density/surface controls
+**Wireframe files** (all in `design/`):
+- `design/StobaeusVoice Wireframes.html` — entry point (React via CDN)
+- `design/wf-screens-a.jsx` — screens 1–7
+- `design/wf-screens-b.jsx` — screens 8–14
+- `design/wf-shell.jsx` — shared Sidebar, ScreenFrame, PageHead, Stat, ChartLine, Waveform, Avatar
+- `design/icons.jsx` — Lucide-style SVG icon library
+- `design/wf-app.jsx` — canvas assembly, tweak system
+- `design/design-canvas.jsx` — pan/zoom design canvas
+- `design/tweaks-panel.jsx` — fidelity/density/surface controls
 
 ---
 

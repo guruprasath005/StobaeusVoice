@@ -16,7 +16,7 @@
 - [x] **Product pivoted to cardiology-only** — cardiologists, not all specialties
 
 ### Design
-- [x] Wireframes — all 14 screens designed (open `StobaeusVoice Wireframes.html`)
+- [x] Wireframes — all 14 screens designed (open `design/StobaeusVoice Wireframes.html`)
 - [x] Design system defined:
   - Primary: `#0EA5E9` teal-blue
   - Success: `#10B981` green
@@ -213,7 +213,7 @@ npm run dev
 |---|---|
 | `CLAUDE.md` | Full project context — read this first |
 | `PROGRESS.md` | This file |
-| `StobaeusVoice Wireframes.html` | Open in browser — all 14 screen designs |
+| `design/StobaeusVoice Wireframes.html` | Open in browser — all 14 screen designs |
 | `backend/main.py` | FastAPI entry point |
 | `backend/database.py` | DB schema — users, patients, consultations |
 | `backend/routers/auth.py` | JWT login, user CRUD (admin) |
