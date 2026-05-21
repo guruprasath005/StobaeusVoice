@@ -183,18 +183,6 @@ const TEMPLATE_ICD: Record<string, { code: string; description: string }[]> = {
 
 // ── Mock pending queue ────────────────────────────────────────────
 
-const MOCK_QUEUE = [
-  { name: "Suresh Iyer",   type: "MRI Spine",    urgency: "URGENT",  dot: "#EF4444" },
-  { name: "Karthik R.",    type: "CXR follow-up", urgency: "ROUTINE", dot: "#0EA5E9" },
-  { name: "Meera Joseph",  type: "USG Abdomen",   urgency: "ROUTINE", dot: "#0EA5E9" },
-  { name: "Lalitha N.",    type: "CT Brain",       urgency: "URGENT",  dot: "#EF4444" },
-  { name: "Pooja Nair",    type: "Blood — CBC",    urgency: "ROUTINE", dot: "#0EA5E9" },
-  { name: "B. Shah",       type: "CXR portable",   urgency: "STAT",    dot: "#EF4444" },
-  { name: "Arjun S.",      type: "CT Cardiac",     urgency: "ROUTINE", dot: "#0EA5E9" },
-  { name: "Geeta Rao",     type: "HbA1c",          urgency: "ROUTINE", dot: "#0EA5E9" },
-  { name: "Ravi Kumar",    type: "Lipid Profile",  urgency: "ROUTINE", dot: "#0EA5E9" },
-];
-
 // ── Components ────────────────────────────────────────────────────
 
 function Icon({ d, d2, size = 14 }: { d: string; d2?: string; size?: number }) {
@@ -736,42 +724,11 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
           style={{ width: 252, borderLeft: "1px dashed #d4d4d2" }}
         >
           <div className="px-4 py-2.5 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-            <span className="font-hand text-base font-bold text-gray-900">
-              Pending queue{" "}
-              <span
-                className="font-sans text-[11px] font-semibold px-1.5 py-0.5 rounded-full align-middle"
-                style={{ background: "#1a1a1a", color: "#fff" }}
-              >
-                {MOCK_QUEUE.length}
-              </span>
-            </span>
+            <span className="font-hand text-base font-bold text-gray-900">Pending queue</span>
           </div>
 
-          <div className="flex-1 overflow-auto">
-            {MOCK_QUEUE.map((p, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between px-4 py-2.5 hover:bg-[#F0F9FF] transition cursor-pointer"
-                style={{ borderBottom: "1px dashed #ececea" }}
-              >
-                <div className="flex items-start gap-2 min-w-0">
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0 mt-1.5"
-                    style={{ background: p.dot }}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{p.name}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{p.type}</p>
-                  </div>
-                </div>
-                <span
-                  className="text-[9px] font-bold shrink-0 ml-2"
-                  style={{ color: p.urgency === "ROUTINE" ? "#0369a1" : "#DC2626" }}
-                >
-                  {p.urgency}
-                </span>
-              </div>
-            ))}
+          <div className="flex-1 overflow-auto flex items-center justify-center">
+            <p className="text-xs text-gray-400 px-4 text-center">No reports in the queue</p>
           </div>
 
           <div className="px-4 py-3 shrink-0" style={{ borderTop: "1px dashed #d4d4d2" }}>

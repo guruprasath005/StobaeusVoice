@@ -40,6 +40,9 @@ def list_reports(patient_id: Optional[str] = None, template: Optional[str] = Non
     reports = q.order_by(desc(RadiologyReport.created_at)).offset(skip).limit(limit).all()
     result = []
     for r in reports:
+        # Skip empty/abandoned drafts — a template was picked but nothing was entered.
+        if r.status == "draft" and not r.findings:
+            continue
         patient = db.query(Patient).filter(Patient.patient_id == r.patient_id).first() if r.patient_id else None
         result.append({
             "report_id": r.report_id, "patient_id": r.patient_id,

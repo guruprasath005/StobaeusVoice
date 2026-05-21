@@ -42,6 +42,7 @@ def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_c
                 EchoReport.doctor_id == current_user.id)\
         .order_by(EchoReport.created_at.desc()).limit(20).all()
 
+    # Only alert on reports that actually have findings — skip empty/abandoned drafts.
     pending_echo = [
         {
             "report_id": r.report_id,
@@ -51,6 +52,7 @@ def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_c
             "created_at": r.created_at.isoformat() if r.created_at else None,
         }
         for r, p in echo_rows
+        if r.findings
     ]
 
     return {
@@ -67,9 +69,12 @@ def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start  = today_start - timedelta(days=today_start.weekday())  # Monday
 
+    # Only count "real" consultations — ones that actually have a transcript.
+    # Abandoned sessions (started but never recorded) have transcript = NULL.
     today_count = db.query(Consultation).filter(
         Consultation.started_at >= today_start,
         Consultation.doctor_id == current_user.id,
+        Consultation.transcript.isnot(None),
     ).count()
 
     # Consultations per day for the current week (Mon–Sun)
@@ -81,6 +86,7 @@ def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(
             Consultation.started_at >= day_start,
             Consultation.started_at < day_end,
             Consultation.doctor_id == current_user.id,
+            Consultation.transcript.isnot(None),
         ).count()
         week_days.append(n)
 
@@ -95,7 +101,8 @@ def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(
     # Recent consultations (last 10) — join patient name for display only
     recent_rows = db.query(Consultation, Patient)\
         .outerjoin(Patient, Consultation.patient_id == Patient.patient_id)\
-        .filter(Consultation.doctor_id == current_user.id)\
+        .filter(Consultation.doctor_id == current_user.id,
+                Consultation.transcript.isnot(None))\
         .order_by(Consultation.started_at.desc())\
         .limit(10).all()
 
@@ -352,6 +359,21 @@ def approve_note(session_id: str, body: ApproveRequest, db: Session = Depends(ge
 
 
 # ── Get consultation (for review screen) ─────────────────────────
+
+@router.delete("/{session_id}")
+def discard_consultation(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Discard an abandoned session. Only deletes if nothing was ever recorded
+    (no transcript) — a consultation with real content is never removed here."""
+    c = db.query(Consultation).filter(Consultation.session_id == session_id).first()
+    if not c:
+        return {"ok": True, "discarded": False}
+    assert_owner(c.doctor_id, current_user)
+    if c.transcript:
+        return {"ok": True, "discarded": False}
+    db.delete(c)
+    db.commit()
+    return {"ok": True, "discarded": True}
+
 
 @router.get("/{session_id}")
 def get_consultation(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

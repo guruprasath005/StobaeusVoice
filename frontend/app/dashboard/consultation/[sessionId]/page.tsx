@@ -257,6 +257,15 @@ export default function ActiveConsultationPage() {
     else startRecording();
   };
 
+  // Leaving without recording anything → discard the empty session so it
+  // never shows up as a stray "recording" entry on the dashboard.
+  const handleCancel = async () => {
+    if (!transcript.trim() && !transcriptRef.current.trim()) {
+      try { await api.discardConsultation(sessionId); } catch { /* best-effort */ }
+    }
+    router.push("/dashboard");
+  };
+
   // Patient initials for avatar
   const initials = patientDisplay
     ? patientDisplay.split(" ").filter(w => /^[A-Za-z]/.test(w)).slice(0, 2).map(w => w[0]).join("").toUpperCase()
@@ -319,7 +328,7 @@ export default function ActiveConsultationPage() {
             </span>
           )}
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={handleCancel}
             className="text-xs text-gray-400 hover:text-gray-700 px-2.5 py-1 rounded-lg hover:bg-gray-100 transition cursor-pointer"
           >
             Cancel

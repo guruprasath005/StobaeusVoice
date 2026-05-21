@@ -121,6 +121,9 @@ export const api = {
   getConsultation: (sessionId: string) =>
     apiFetch(`${BASE}/consultations/${sessionId}`).then(r => r.json()),
 
+  discardConsultation: (sessionId: string) =>
+    apiFetch(`${BASE}/consultations/${sessionId}`, { method: "DELETE" }).then(r => r.json()),
+
   // Echo / Cath Lab / Stress Test / Holter reports
   createEchoReport: (template: string, patientId?: string) =>
     apiFetch(`${BASE}/echo/reports`, {

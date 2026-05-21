@@ -59,6 +59,9 @@ def list_reports(patient_id: Optional[str] = None, limit: int = 30, db: Session 
 
     result = []
     for r in reports:
+        # Skip empty/abandoned drafts — a template was picked but nothing was entered.
+        if r.status == "draft" and not r.findings:
+            continue
         patient_display = None
         if r.patient_id and not r.patient_id.startswith("PT-ANON"):
             p = db.query(Patient).filter(Patient.patient_id == r.patient_id).first()
