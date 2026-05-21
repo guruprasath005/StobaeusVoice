@@ -1,0 +1,823 @@
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { api } from "@/lib/api";
+
+// ── Types ──────────────────────────────────────────────────────────
+
+type Template = "echo" | "cath" | "stress_test" | "holter";
+
+interface ReportData {
+  report_id: string;
+  template: Template;
+  patient_id: string | null;
+  patient_display: string | null;
+  findings: Record<string, unknown>;
+  impression: string | null;
+  icd_codes: { code: string; description: string }[] | null;
+  status: string;
+  created_at: string | null;
+}
+
+// ── Small helpers ──────────────────────────────────────────────────
+
+function Icon({ d, d2, size = 14 }: { d: string; d2?: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />{d2 && <path d={d2} />}
+    </svg>
+  );
+}
+
+function SectionHead({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-2 mb-2" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+      <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+      <h3 className="font-hand text-sm font-bold text-gray-900">{label}</h3>
+    </div>
+  );
+}
+
+const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white";
+const inputSty = { border: "1.5px solid #d4d4d2" };
+const labelCls = "block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Select({ value, onChange, options }: {
+  value: string; onChange: (v: string) => void; options: string[];
+}) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} className={inputCls + " bg-white"} style={inputSty}>
+      <option value="">—</option>
+      {options.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+function TextInput({ value, onChange, placeholder, unit }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; unit?: string;
+}) {
+  return (
+    <div className="relative">
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={inputCls}
+        style={inputSty}
+      />
+      {unit && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">{unit}</span>}
+    </div>
+  );
+}
+
+// ── Echo template ──────────────────────────────────────────────────
+
+function EchoForm({ findings, onChange }: {
+  findings: Record<string, string>; onChange: (k: string, v: string) => void;
+}) {
+  const f = (k: string) => findings[k] || "";
+  const chg = (k: string) => (v: string) => onChange(k, v);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* LV */}
+      <div>
+        <SectionHead label="Left Ventricle" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="EF (%)">
+            <TextInput value={f("lv_ef")} onChange={chg("lv_ef")} placeholder="e.g. 55" unit="%" />
+          </Field>
+          <Field label="LV Hypertrophy">
+            <Select value={f("lv_hypertrophy")} onChange={chg("lv_hypertrophy")} options={["None", "Mild", "Moderate", "Severe"]} />
+          </Field>
+          <Field label="LVEDD">
+            <TextInput value={f("lvedd")} onChange={chg("lvedd")} placeholder="e.g. 48" unit="mm" />
+          </Field>
+          <Field label="LVESD">
+            <TextInput value={f("lvesd")} onChange={chg("lvesd")} placeholder="e.g. 32" unit="mm" />
+          </Field>
+          <div className="col-span-2">
+            <Field label="Wall Motion Abnormality (RWMA)">
+              <textarea
+                value={f("rwma")}
+                onChange={e => onChange("rwma", e.target.value)}
+                placeholder="e.g. Hypokinesia of anterior wall and apex consistent with LAD territory..."
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white resize-none"
+                style={{ ...inputSty, minHeight: 60 }}
+              />
+            </Field>
+          </div>
+        </div>
+      </div>
+
+      {/* RV */}
+      <div>
+        <SectionHead label="Right Ventricle" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="RV Dimensions">
+            <Select value={f("rv_size")} onChange={chg("rv_size")} options={["Normal", "Mildly dilated", "Moderately dilated", "Severely dilated"]} />
+          </Field>
+          <Field label="RV Function">
+            <Select value={f("rv_function")} onChange={chg("rv_function")} options={["Normal", "Mildly reduced", "Moderately reduced", "Severely reduced"]} />
+          </Field>
+        </div>
+      </div>
+
+      {/* Valves */}
+      <div>
+        <SectionHead label="Valves" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Mitral Regurgitation (MR)">
+            <Select value={f("mr_grade")} onChange={chg("mr_grade")} options={["None", "Trivial (1+)", "Mild (2+)", "Moderate (3+)", "Severe (4+)"]} />
+          </Field>
+          <Field label="Mitral Stenosis">
+            <Select value={f("ms")} onChange={chg("ms")} options={["No", "Yes — mild", "Yes — moderate", "Yes — severe"]} />
+          </Field>
+          {f("ms") !== "No" && f("ms") !== "" && (
+            <Field label="MVA">
+              <TextInput value={f("mva")} onChange={chg("mva")} placeholder="e.g. 1.2" unit="cm²" />
+            </Field>
+          )}
+          <Field label="Aortic Regurgitation (AR)">
+            <Select value={f("ar_grade")} onChange={chg("ar_grade")} options={["None", "Trivial (1+)", "Mild (2+)", "Moderate (3+)", "Severe (4+)"]} />
+          </Field>
+          <Field label="Aortic Stenosis">
+            <Select value={f("as")} onChange={chg("as")} options={["No", "Yes — mild", "Yes — moderate", "Yes — severe"]} />
+          </Field>
+          {f("as") !== "No" && f("as") !== "" && (
+            <Field label="Mean AV Gradient">
+              <TextInput value={f("av_gradient")} onChange={chg("av_gradient")} placeholder="e.g. 40" unit="mmHg" />
+            </Field>
+          )}
+          <Field label="Tricuspid Regurgitation (TR)">
+            <Select value={f("tr_grade")} onChange={chg("tr_grade")} options={["None", "Trivial (1+)", "Mild (2+)", "Moderate (3+)", "Severe (4+)"]} />
+          </Field>
+          <Field label="RVSP (estimated)">
+            <TextInput value={f("rvsp")} onChange={chg("rvsp")} placeholder="e.g. 45" unit="mmHg" />
+          </Field>
+        </div>
+      </div>
+
+      {/* Atria + Pericardium */}
+      <div>
+        <SectionHead label="Atria & Pericardium" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Left Atrium">
+            <Select value={f("la_size")} onChange={chg("la_size")} options={["Normal", "Mildly dilated", "Moderately dilated", "Severely dilated"]} />
+          </Field>
+          <Field label="Right Atrium">
+            <Select value={f("ra_size")} onChange={chg("ra_size")} options={["Normal", "Mildly dilated", "Moderately dilated", "Severely dilated"]} />
+          </Field>
+          <Field label="Pericardium">
+            <Select value={f("pericardium")} onChange={chg("pericardium")} options={["Normal", "Trivial effusion", "Small effusion", "Moderate effusion", "Large effusion", "Constrictive features"]} />
+          </Field>
+          <Field label="IVC">
+            <Select value={f("ivc")} onChange={chg("ivc")} options={["Normal", "Dilated (no collapse)", "Dilated (partial collapse)"]} />
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Cath template ──────────────────────────────────────────────────
+
+const COMPLICATION_OPTIONS = [
+  "Nil", "Coronary dissection", "No-reflow / slow-flow", "Perforation",
+  "Access site haematoma", "Contrast reaction", "Hypotension requiring support",
+  "Arrhythmia", "Cardiac arrest", "Stroke",
+];
+
+function CompMultiSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const selected = value ? value.split(",").map(s => s.trim()).filter(Boolean) : [];
+  const toggle = (opt: string) => {
+    let next: string[];
+    if (opt === "Nil") {
+      next = selected.includes("Nil") ? [] : ["Nil"];
+    } else {
+      const without = selected.filter(s => s !== "Nil");
+      next = without.includes(opt) ? without.filter(s => s !== opt) : [...without, opt];
+    }
+    onChange(next.join(", "));
+  };
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {COMPLICATION_OPTIONS.map(opt => {
+        const active = selected.includes(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => toggle(opt)}
+            className={`text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition font-medium ${
+              active ? "bg-red-100 text-red-700 border border-red-300" : "bg-gray-50 text-gray-500 border border-gray-200 hover:border-gray-400"
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CathForm({ findings, onChange }: {
+  findings: Record<string, string>; onChange: (k: string, v: string) => void;
+}) {
+  const f = (k: string) => findings[k] || "";
+  const chg = (k: string) => (v: string) => onChange(k, v);
+  const TIMI = ["0", "1", "2", "3"];
+  const STENOSIS = ["Normal", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "95%", "99%", "100% (total occlusion)"];
+  const isPCI = f("recommendation")?.startsWith("PCI");
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Procedure */}
+      <div>
+        <SectionHead label="Procedure Details" />
+        <div className="grid grid-cols-4 gap-3">
+          <Field label="Access">
+            <Select value={f("access")} onChange={chg("access")} options={["Radial (right)", "Radial (left)", "Femoral (right)", "Femoral (left)"]} />
+          </Field>
+          <Field label="Catheter Size">
+            <Select value={f("catheter_fr")} onChange={chg("catheter_fr")} options={["5F", "6F", "7F", "8F"]} />
+          </Field>
+          <Field label="Fluoroscopy Time">
+            <TextInput value={f("fluoro_time")} onChange={chg("fluoro_time")} placeholder="e.g. 12.5" unit="min" />
+          </Field>
+          <Field label="Contrast Volume">
+            <TextInput value={f("contrast_vol")} onChange={chg("contrast_vol")} placeholder="e.g. 120" unit="mL" />
+          </Field>
+          <Field label="Coronary Dominance">
+            <Select value={f("dominance")} onChange={chg("dominance")} options={["Right dominant", "Left dominant", "Co-dominant"]} />
+          </Field>
+        </div>
+      </div>
+
+      {/* Coronary anatomy */}
+      <div>
+        <SectionHead label="Coronary Anatomy" />
+        <div className="grid grid-cols-4 gap-3">
+          <Field label="LMCA">
+            <Select value={f("lmca")} onChange={chg("lmca")} options={["Normal", ...STENOSIS.slice(3)]} />
+          </Field>
+          <div />
+
+          {/* LAD */}
+          <Field label="LAD — Proximal"><Select value={f("lad_prox")} onChange={chg("lad_prox")} options={STENOSIS} /></Field>
+          <Field label="LAD — Mid"><Select value={f("lad_mid")} onChange={chg("lad_mid")} options={STENOSIS} /></Field>
+          <Field label="LAD — Distal"><Select value={f("lad_dist")} onChange={chg("lad_dist")} options={STENOSIS} /></Field>
+          <div />
+          <Field label="LAD TIMI — Pre"><Select value={f("lad_timi")} onChange={chg("lad_timi")} options={TIMI} /></Field>
+          <Field label="LAD TIMI — Post"><Select value={f("lad_timi_post")} onChange={chg("lad_timi_post")} options={TIMI} /></Field>
+          <div /><div />
+
+          {/* LCX */}
+          <Field label="LCX — Proximal"><Select value={f("lcx_prox")} onChange={chg("lcx_prox")} options={STENOSIS} /></Field>
+          <Field label="LCX — OM1"><Select value={f("lcx_om1")} onChange={chg("lcx_om1")} options={STENOSIS} /></Field>
+          <Field label="LCX — OM2"><Select value={f("lcx_om2")} onChange={chg("lcx_om2")} options={STENOSIS} /></Field>
+          <div />
+          <Field label="LCX TIMI — Pre"><Select value={f("lcx_timi")} onChange={chg("lcx_timi")} options={TIMI} /></Field>
+          <Field label="LCX TIMI — Post"><Select value={f("lcx_timi_post")} onChange={chg("lcx_timi_post")} options={TIMI} /></Field>
+          <div /><div />
+
+          {/* RCA */}
+          <Field label="RCA — Proximal"><Select value={f("rca_prox")} onChange={chg("rca_prox")} options={STENOSIS} /></Field>
+          <Field label="RCA — Mid"><Select value={f("rca_mid")} onChange={chg("rca_mid")} options={STENOSIS} /></Field>
+          <Field label="RCA — Distal"><Select value={f("rca_dist")} onChange={chg("rca_dist")} options={STENOSIS} /></Field>
+          <div />
+          <Field label="RCA TIMI — Pre"><Select value={f("rca_timi")} onChange={chg("rca_timi")} options={TIMI} /></Field>
+          <Field label="RCA TIMI — Post"><Select value={f("rca_timi_post")} onChange={chg("rca_timi_post")} options={TIMI} /></Field>
+        </div>
+      </div>
+
+      {/* Hemodynamics */}
+      <div>
+        <SectionHead label="Hemodynamics" />
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="LVEDP"><TextInput value={f("lvedp")} onChange={chg("lvedp")} placeholder="e.g. 18" unit="mmHg" /></Field>
+          <Field label="Aortic Pressure"><TextInput value={f("aortic_bp")} onChange={chg("aortic_bp")} placeholder="e.g. 130/80" unit="mmHg" /></Field>
+          <Field label="LV EF (ventriculogram)"><TextInput value={f("lv_ef")} onChange={chg("lv_ef")} placeholder="e.g. 45" unit="%" /></Field>
+        </div>
+      </div>
+
+      {/* Recommendation */}
+      <div>
+        <SectionHead label="Recommendation" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Plan">
+            <Select value={f("recommendation")} onChange={chg("recommendation")} options={["Medical management", "PCI — single vessel", "PCI — multi vessel", "CABG", "CABG + valve surgery", "Palliative"]} />
+          </Field>
+          {isPCI && (
+            <Field label="Target Vessel">
+              <TextInput value={f("pci_vessel")} onChange={chg("pci_vessel")} placeholder="e.g. LAD proximal" />
+            </Field>
+          )}
+        </div>
+      </div>
+
+      {/* Stent Details — shown when PCI selected */}
+      {isPCI && (
+        <div>
+          <SectionHead label="Stent Details" />
+          <div className="grid grid-cols-4 gap-3">
+            <Field label="Stent Brand">
+              <Select value={f("stent_brand")} onChange={chg("stent_brand")} options={["Xience (Abbott)", "Resolute Onyx (Medtronic)", "Synergy (BSci)", "BioFreedom (Biosensors)", "Ultimaster (Terumo)", "Supraflex (Sahajanand)", "Coroflex ISAR (B.Braun)", "Other"]} />
+            </Field>
+            <Field label="Stent Diameter">
+              <Select value={f("stent_dia")} onChange={chg("stent_dia")} options={["2.25 mm", "2.5 mm", "2.75 mm", "3.0 mm", "3.25 mm", "3.5 mm", "3.75 mm", "4.0 mm"]} />
+            </Field>
+            <Field label="Stent Length">
+              <Select value={f("stent_len")} onChange={chg("stent_len")} options={["8 mm", "12 mm", "14 mm", "16 mm", "18 mm", "20 mm", "23 mm", "24 mm", "28 mm", "32 mm", "38 mm"]} />
+            </Field>
+            <Field label="Post-Dilation">
+              <Select value={f("post_dilation")} onChange={chg("post_dilation")} options={["No", "Yes — NC balloon", "Yes — cutting balloon"]} />
+            </Field>
+          </div>
+        </div>
+      )}
+
+      {/* Complications */}
+      <div>
+        <SectionHead label="Complications" />
+        <CompMultiSelect value={f("complications")} onChange={chg("complications")} />
+      </div>
+    </div>
+  );
+}
+
+// ── Stress Test template ───────────────────────────────────────────
+
+function StressTestForm({ findings, onChange }: {
+  findings: Record<string, string>; onChange: (k: string, v: string) => void;
+}) {
+  const f = (k: string) => findings[k] || "";
+  const chg = (k: string) => (v: string) => onChange(k, v);
+
+  const mphrAchieved = (() => {
+    const age = parseFloat(f("patient_age") || "0");
+    const peakHR = parseFloat(f("peak_hr") || "0");
+    if (!age || !peakHR) return null;
+    const mphr = 220 - age;
+    return Math.round((peakHR / mphr) * 100);
+  })();
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Protocol */}
+      <div>
+        <SectionHead label="Protocol" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Protocol">
+            <Select value={f("protocol")} onChange={chg("protocol")} options={["Bruce", "Modified Bruce", "Naughton", "Pharmacological (Dobutamine)", "Pharmacological (Adenosine)"]} />
+          </Field>
+          <Field label="Duration Completed">
+            <TextInput value={f("duration")} onChange={chg("duration")} placeholder="e.g. 8:30" unit="min" />
+          </Field>
+          <Field label="Reason Stopped">
+            <Select value={f("stop_reason")} onChange={chg("stop_reason")} options={["Target HR achieved", "Fatigue", "Angina", "Dyspnoea", "ST changes", "BP drop", "Arrhythmia", "Patient request"]} />
+          </Field>
+        </div>
+      </div>
+
+      {/* HR & BP */}
+      <div>
+        <SectionHead label="Haemodynamic Response" />
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Baseline HR"><TextInput value={f("baseline_hr")} onChange={chg("baseline_hr")} placeholder="e.g. 72" unit="bpm" /></Field>
+          <Field label="Peak HR"><TextInput value={f("peak_hr")} onChange={chg("peak_hr")} placeholder="e.g. 148" unit="bpm" /></Field>
+          <Field label="% MPHR">
+            <div className={inputCls + " bg-gray-50 text-gray-600"} style={inputSty}>
+              {mphrAchieved !== null ? `${mphrAchieved}%` : "—"}
+            </div>
+          </Field>
+          <Field label="Baseline BP"><TextInput value={f("baseline_bp")} onChange={chg("baseline_bp")} placeholder="e.g. 130/80" unit="mmHg" /></Field>
+          <Field label="Peak BP"><TextInput value={f("peak_bp")} onChange={chg("peak_bp")} placeholder="e.g. 180/90" unit="mmHg" /></Field>
+        </div>
+      </div>
+
+      {/* ECG */}
+      <div>
+        <SectionHead label="ECG Changes" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="ST Changes">
+            <Select value={f("st_changes")} onChange={chg("st_changes")} options={["No ST changes", "ST depression", "ST elevation", "LBBB", "RBBB", "Non-specific"]} />
+          </Field>
+          {(f("st_changes") === "ST depression" || f("st_changes") === "ST elevation") && (
+            <>
+              <Field label="Depth / Elevation"><TextInput value={f("st_depth")} onChange={chg("st_depth")} placeholder="e.g. 2" unit="mm" /></Field>
+              <Field label="Leads affected"><TextInput value={f("st_leads")} onChange={chg("st_leads")} placeholder="e.g. V4–V6, II, aVF" /></Field>
+            </>
+          )}
+          <Field label="Symptoms during test">
+            <Select value={f("symptoms")} onChange={chg("symptoms")} options={["None", "Chest pain (typical)", "Chest pain (atypical)", "Dyspnoea", "Palpitations", "Presyncope"]} />
+          </Field>
+        </div>
+      </div>
+
+      {/* Result */}
+      <div>
+        <SectionHead label="Result" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Test Result">
+            <Select value={f("result")} onChange={chg("result")} options={["Negative — no evidence of ischaemia", "Positive — evidence of ischaemia", "Non-diagnostic — inadequate HR", "Non-diagnostic — arrhythmia", "Indeterminate"]} />
+          </Field>
+          <Field label="Duke Treadmill Score"><TextInput value={f("duke_score")} onChange={chg("duke_score")} placeholder="e.g. +5" /></Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Holter template ────────────────────────────────────────────────
+
+function HolterForm({ findings, onChange }: {
+  findings: Record<string, string>; onChange: (k: string, v: string) => void;
+}) {
+  const f = (k: string) => findings[k] || "";
+  const chg = (k: string) => (v: string) => onChange(k, v);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Setup */}
+      <div>
+        <SectionHead label="Monitor Details" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Duration">
+            <Select value={f("duration")} onChange={chg("duration")} options={["24 hours", "48 hours", "7 days", "14 days"]} />
+          </Field>
+          <Field label="Quality">
+            <Select value={f("quality")} onChange={chg("quality")} options={["Good — full recording", "Adequate — minor artefact", "Poor — significant artefact"]} />
+          </Field>
+        </div>
+      </div>
+
+      {/* Rhythm */}
+      <div>
+        <SectionHead label="Rhythm" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Dominant Rhythm">
+            <Select value={f("dominant_rhythm")} onChange={chg("dominant_rhythm")} options={["Sinus rhythm", "Atrial fibrillation", "Atrial flutter", "Ectopic atrial rhythm", "Paced rhythm"]} />
+          </Field>
+          {f("dominant_rhythm") === "Atrial fibrillation" && (
+            <Field label="AF Burden"><TextInput value={f("af_burden")} onChange={chg("af_burden")} placeholder="e.g. 78" unit="%" /></Field>
+          )}
+          <Field label="Min HR"><TextInput value={f("hr_min")} onChange={chg("hr_min")} placeholder="e.g. 48" unit="bpm" /></Field>
+          <Field label="Max HR"><TextInput value={f("hr_max")} onChange={chg("hr_max")} placeholder="e.g. 138" unit="bpm" /></Field>
+          <Field label="Mean HR"><TextInput value={f("hr_mean")} onChange={chg("hr_mean")} placeholder="e.g. 74" unit="bpm" /></Field>
+        </div>
+      </div>
+
+      {/* Ectopics */}
+      <div>
+        <SectionHead label="Ectopics & Arrhythmias" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="VPCs (total)"><TextInput value={f("vpc_total")} onChange={chg("vpc_total")} placeholder="e.g. 1240" /></Field>
+          <Field label="VPC burden"><TextInput value={f("vpc_burden")} onChange={chg("vpc_burden")} placeholder="e.g. 2.1" unit="%" /></Field>
+          <Field label="Couplets"><TextInput value={f("couplets")} onChange={chg("couplets")} placeholder="e.g. 12" /></Field>
+          <Field label="VT runs">
+            <Select value={f("vt_runs")} onChange={chg("vt_runs")} options={["None", "NSVT (< 30s)", "Sustained VT (≥ 30s)"]} />
+          </Field>
+          <Field label="SVT episodes">
+            <Select value={f("svt")} onChange={chg("svt")} options={["None", "Isolated SVPCs", "SVT runs"]} />
+          </Field>
+          <Field label="Longest Pause"><TextInput value={f("longest_pause")} onChange={chg("longest_pause")} placeholder="e.g. 2.1" unit="sec" /></Field>
+        </div>
+      </div>
+
+      {/* Conduction */}
+      <div>
+        <SectionHead label="Conduction" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="AV Block">
+            <Select value={f("av_block")} onChange={chg("av_block")} options={["None", "1st degree AV block", "2nd degree — Mobitz I (Wenckebach)", "2nd degree — Mobitz II", "3rd degree (complete heart block)"]} />
+          </Field>
+          <Field label="Bundle Branch Block">
+            <Select value={f("bbb")} onChange={chg("bbb")} options={["None", "LBBB (persistent)", "RBBB (persistent)", "LBBB (rate-related)", "RBBB (rate-related)"]} />
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ICD row ────────────────────────────────────────────────────────
+
+function IcdRow({ code, description, onRemove }: { code: string; description: string; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-2 py-1.5" style={{ borderBottom: "1px dashed #ececea" }}>
+      <span className="text-[11px] font-mono font-bold text-[#0EA5E9] w-16 shrink-0">{code}</span>
+      <span className="flex-1 text-[11px] text-gray-700 truncate">{description}</span>
+      <button onClick={onRemove} className="text-gray-300 hover:text-red-400 cursor-pointer shrink-0 text-base leading-none">×</button>
+    </div>
+  );
+}
+
+// ── Dictation widget ───────────────────────────────────────────────
+
+function DictationWidget({ reportId, onTranscript }: { reportId: string; onTranscript: (t: string) => void }) {
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.start();
+      setRecording(true);
+    } catch { /* mic denied */ }
+  };
+
+  const stop = useCallback(async () => {
+    const mr = mediaRef.current;
+    if (!mr) return;
+    mr.onstop = async () => {
+      mr.stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunksRef.current, { type: mr.mimeType });
+      if (blob.size > 0) {
+        setTranscribing(true);
+        try {
+          const res = await api.dictateEchoImpression(reportId, blob);
+          if (res.transcript) onTranscript(res.transcript);
+        } catch { /* handled by parent */ }
+        finally { setTranscribing(false); }
+      }
+    };
+    mr.stop();
+    setRecording(false);
+  }, [reportId, onTranscript]);
+
+  return (
+    <button
+      onClick={recording ? stop : start}
+      disabled={transcribing}
+      className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50 ${
+        recording
+          ? "bg-red-50 text-red-600 border border-red-200"
+          : "bg-[#E0F2FE] text-[#0369a1] hover:bg-[#bae6fd]"
+      }`}
+    >
+      {transcribing ? (
+        <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" /> Transcribing…</>
+      ) : recording ? (
+        <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" /> Stop</>
+      ) : (
+        <><Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2" size={11} /> Dictate</>
+      )}
+    </button>
+  );
+}
+
+// ── TEMPLATE_LABELS ────────────────────────────────────────────────
+
+const TEMPLATE_META: Record<string, { label: string; color: string; bg: string }> = {
+  echo:        { label: "Echocardiogram", color: "#0EA5E9", bg: "#E0F2FE" },
+  cath:        { label: "Coronary Angiogram", color: "#EF4444", bg: "#FEE2E2" },
+  stress_test: { label: "Stress Test (TMT)", color: "#F59E0B", bg: "#FEF3C7" },
+  holter:      { label: "Holter Monitor", color: "#8B5CF6", bg: "#EDE9FE" },
+};
+
+// ── Main ──────────────────────────────────────────────────────────
+
+export default function EchoReportPage() {
+  const router = useRouter();
+  const params = useParams();
+  const reportId = params.reportId as string;
+
+  const [data, setData] = useState<ReportData | null>(null);
+  const [findings, setFindings] = useState<Record<string, string>>({});
+  const [impression, setImpression] = useState("");
+  const [icdCodes, setIcdCodes] = useState<{ code: string; description: string }[]>([]);
+  const [newIcd, setNewIcd] = useState({ code: "", description: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+  const [finalized, setFinalized] = useState(false);
+  const [error, setError] = useState("");
+
+  // Autosave timer ref
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    api.getEchoReport(reportId).then(d => {
+      setData(d);
+      setFindings(d.findings || {});
+      setImpression(d.impression || "");
+      setIcdCodes(d.icd_codes || []);
+      if (d.status === "final") setFinalized(true);
+    }).catch(() => setError("Report not found"))
+      .finally(() => setLoading(false));
+  }, [reportId]);
+
+  const updateFinding = useCallback((key: string, val: string) => {
+    setFindings(f => {
+      const next = { ...f, [key]: val };
+      // Debounced autosave
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        api.saveEchoReport(reportId, next as Record<string, unknown>).catch(() => {});
+      }, 1500);
+      return next;
+    });
+  }, [reportId]);
+
+  const save = async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    setSaving(true);
+    try {
+      await api.saveEchoReport(reportId, findings as Record<string, unknown>, impression, icdCodes);
+    } catch { setError("Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  const generateImpression = async () => {
+    await save();
+    setGenerating(true); setError("");
+    try {
+      const res = await api.generateEchoImpression(reportId);
+      if (res.impression) setImpression(res.impression);
+      if (res.icd_codes) setIcdCodes(res.icd_codes);
+    } catch { setError("Generation failed — check OpenAI key in backend"); }
+    finally { setGenerating(false); }
+  };
+
+  const finalize = async () => {
+    if (!impression.trim()) { setError("Add an impression before finalizing"); return; }
+    setFinalizing(true); setError("");
+    try {
+      await api.finalizeEchoReport(reportId, findings as Record<string, unknown>, impression, icdCodes);
+      setFinalized(true);
+      setTimeout(() => router.push("/dashboard/echo"), 1200);
+    } catch { setError("Finalize failed"); setFinalizing(false); }
+  };
+
+  const meta = data ? (TEMPLATE_META[data.template] || TEMPLATE_META.echo) : TEMPLATE_META.echo;
+
+  if (loading) {
+    return <div className="flex-1 flex items-center justify-center text-sm text-gray-400">Loading report…</div>;
+  }
+  if (!data) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3">
+        <p className="text-sm text-red-600">Report not found</p>
+        <button onClick={() => router.push("/dashboard/echo")} className="text-xs text-[#0EA5E9] hover:underline cursor-pointer">← Back</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full overflow-hidden">
+      {/* Left: structured findings */}
+      <div className="flex-1 overflow-auto min-w-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 h-[72px] bg-white sticky top-0 z-10" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push("/dashboard/echo")} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+              <Icon d="M15 18l-6-6 6-6" size={16} />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                  style={{ background: meta.bg, color: meta.color }}
+                >
+                  {meta.label}
+                </span>
+                {finalized && (
+                  <span className="text-[10px] font-medium bg-[#DCFCE7] text-[#15803D] px-2 py-0.5 rounded-full">Final</span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {data.patient_display || data.patient_id || "Anonymous"} · {reportId.slice(0, 8)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"
+            >
+              {saving ? "Saving…" : "Save Draft"}
+            </button>
+            <button
+              onClick={finalize}
+              disabled={finalizing || finalized}
+              className="flex items-center gap-2 bg-[#10B981] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#059669] transition cursor-pointer disabled:opacity-50"
+              style={{ boxShadow: "2px 2px 0 #047857" }}
+            >
+              {finalized ? "Finalized ✓" : finalizing ? "Finalizing…" : (
+                <><Icon d="M20 6L9 17l-5-5" size={12} /> Finalize Report</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {error && <div className="mx-5 mt-4 text-xs text-red-600 bg-red-50 rounded-lg px-4 py-2">{error}</div>}
+
+        <div className="p-5">
+          {data.template === "echo" && <EchoForm findings={findings} onChange={updateFinding} />}
+          {data.template === "cath" && <CathForm findings={findings} onChange={updateFinding} />}
+          {data.template === "stress_test" && <StressTestForm findings={findings} onChange={updateFinding} />}
+          {data.template === "holter" && <HolterForm findings={findings} onChange={updateFinding} />}
+        </div>
+      </div>
+
+      {/* Right: impression + ICD */}
+      <div className="w-72 shrink-0 flex flex-col overflow-hidden bg-white" style={{ borderLeft: "1.5px solid #1a1a1a" }}>
+        {/* Impression */}
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+          <h3 className="font-hand text-base font-bold text-gray-900">Impression</h3>
+          <DictationWidget
+            reportId={reportId}
+            onTranscript={t => setImpression(prev => prev ? `${prev}\n${t}` : t)}
+          />
+        </div>
+
+        <div className="px-4 py-3 flex-1 flex flex-col gap-3 overflow-auto">
+          <textarea
+            value={impression}
+            onChange={e => setImpression(e.target.value)}
+            placeholder="Type impression here, or dictate it using the mic button above, or click Generate below…"
+            className="w-full text-xs text-gray-700 leading-relaxed outline-none resize-none bg-white flex-1"
+            style={{ minHeight: 160 }}
+          />
+
+          <button
+            onClick={generateImpression}
+            disabled={generating}
+            className="w-full flex items-center justify-center gap-2 text-xs font-semibold py-2 rounded-lg border transition cursor-pointer disabled:opacity-50"
+            style={{ border: "1.5px solid #0EA5E9", color: "#0EA5E9" }}
+          >
+            {generating ? (
+              <><div className="w-3 h-3 border-2 border-[#0EA5E9] border-t-transparent rounded-full animate-spin shrink-0" /> Generating…</>
+            ) : (
+              <><Icon d="M12 2L2 7l10 5 10-5-10-5z" d2="M2 17l10 5 10-5M2 12l10 5 10-5" size={12} /> Generate via AI</>
+            )}
+          </button>
+        </div>
+
+        {/* ICD-10 */}
+        <div style={{ borderTop: "1px dashed #d4d4d2" }}>
+          <div className="px-4 py-2.5 flex items-center justify-between">
+            <h3 className="font-hand text-sm font-bold text-gray-900">ICD-10 Codes</h3>
+            <span className="text-[10px] text-gray-400">{icdCodes.length}</span>
+          </div>
+          <div className="px-4 pb-1">
+            {icdCodes.length === 0 && (
+              <p className="text-[10px] text-gray-400 pb-2">Generated with impression</p>
+            )}
+            {icdCodes.map((ic, i) => (
+              <IcdRow
+                key={i}
+                code={ic.code}
+                description={ic.description}
+                onRemove={() => setIcdCodes(arr => arr.filter((_, j) => j !== i))}
+              />
+            ))}
+          </div>
+          <div className="px-4 py-2 flex gap-1.5" style={{ borderTop: "1px dashed #d4d4d2" }}>
+            <input
+              value={newIcd.code}
+              onChange={e => setNewIcd(n => ({ ...n, code: e.target.value }))}
+              placeholder="I25.10"
+              className="w-20 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] font-mono"
+              style={{ border: "1.5px solid #d4d4d2" }}
+            />
+            <input
+              value={newIcd.description}
+              onChange={e => setNewIcd(n => ({ ...n, description: e.target.value }))}
+              placeholder="Description"
+              className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9]"
+              style={{ border: "1.5px solid #d4d4d2" }}
+            />
+            <button
+              onClick={() => {
+                if (!newIcd.code.trim()) return;
+                setIcdCodes(arr => [...arr, newIcd]);
+                setNewIcd({ code: "", description: "" });
+              }}
+              className="px-2 py-1 text-[11px] bg-[#E0F2FE] text-[#0369a1] rounded-lg hover:bg-[#bae6fd] cursor-pointer font-medium"
+            >+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

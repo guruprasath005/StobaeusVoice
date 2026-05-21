@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>StobaeusVoice — Wireframes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Caveat:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Inter', system-ui, sans-serif; }
+  body { background: #f0eee9; }
+
+  /* Wireframe primitives */
+  .wf { font-family: 'Inter', sans-serif; color: #1a1a1a; }
+  .wf-hand { font-family: 'Kalam', cursive; }
+  .wf-cav  { font-family: 'Caveat', cursive; }
+  .wf-mono { font-family: 'JetBrains Mono', monospace; }
+
+  .wf-box { border: 1.5px solid #1a1a1a; background: #fff; border-radius: 10px; }
+  .wf-box-dash { border: 1.5px dashed #6b6b6b; background: #fff; border-radius: 10px; }
+  .wf-img-ph { background:
+    repeating-linear-gradient(135deg, #ececec 0 8px, #f7f7f7 8px 16px);
+    border: 1.5px solid #1a1a1a; border-radius: 8px;
+    display:flex; align-items:center; justify-content:center;
+    color:#555; font-family:'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .wf-chip {
+    display:inline-flex; align-items:center; gap:4px;
+    border:1.25px solid #1a1a1a; border-radius:999px;
+    padding: 3px 9px; font-size: 11px; background:#fff;
+  }
+  .wf-pill {
+    display:inline-flex; align-items:center; gap:5px;
+    border-radius:999px; padding: 3px 9px; font-size: 11px;
+    border: 1.25px solid #1a1a1a;
+  }
+  .wf-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    border:1.5px solid #1a1a1a; border-radius: 8px;
+    padding: 7px 12px; font-size: 12px; font-weight: 500;
+    background:#fff; color:#1a1a1a;
+  }
+  .wf-btn-primary { background:#0EA5E9; color:#fff; border-color:#0EA5E9; }
+  .wf-btn-ghost { background:transparent; }
+
+  .wf-teal { color: #0EA5E9; }
+  .wf-bg-teal { background: #0EA5E9; }
+  .wf-bg-tealtint { background: #E0F2FE; }
+  .wf-bg-amber { background: #FEF3C7; }
+  .wf-bg-red { background: #FEE2E2; }
+  .wf-bg-green { background: #D1FAE5; }
+  .wf-bg-gray { background: #f3f3f1; }
+
+  /* Sketch underline for handwritten labels */
+  .wf-underline { background-image: linear-gradient(transparent 80%, rgba(14,165,233,0.4) 80%); }
+
+  /* Wave separator for sections */
+  .wf-wave { height: 6px; background:
+    radial-gradient(circle at 4px 6px, #1a1a1a 1.2px, transparent 1.5px) 0 0/8px 6px repeat-x;
+  }
+
+  /* Generic table-ish rows */
+  .wf-row { display: grid; align-items: center; padding: 9px 12px; border-bottom: 1px dashed #d1d1cf; font-size: 12px; }
+  .wf-row:last-child { border-bottom: 0; }
+
+  /* Sidebar items */
+  .wf-nav { display:flex; align-items:center; gap: 10px; padding: 7px 12px; border-radius: 8px; font-size: 12.5px; color: #2a2a2a; }
+  .wf-nav.active { background: #E0F2FE; color: #0369A1; font-weight: 600; }
+  .wf-nav .ico { width: 16px; height: 16px; flex: 0 0 16px; border:1.25px solid currentColor; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; font-size: 9px; font-family:'JetBrains Mono', monospace; }
+
+  /* Status dots */
+  .dot { display:inline-block; width:8px; height:8px; border-radius:99px; }
+  .dot.green { background:#10B981; }
+  .dot.amber { background:#F59E0B; }
+  .dot.red { background:#EF4444; }
+  .dot.teal { background:#0EA5E9; }
+  .dot.gray { background:#9ca3af; }
+
+  /* Card */
+  .wf-card {
+    background: #fff; border: 1.5px solid #1a1a1a; border-radius: 12px;
+    padding: 14px;
+  }
+  .wf-card-dash {
+    background: #fff; border: 1.5px dashed #6b6b6b; border-radius: 12px;
+    padding: 14px;
+  }
+
+  /* Section title (handwritten note style) */
+  .wf-h { font-family: 'Kalam', cursive; font-weight: 700; }
+
+  /* Scribble strikethrough */
+  .scribble { position: relative; }
+  .scribble::after { content:''; position:absolute; left:-2px; right:-2px; top:55%; height:2px; background:#EF4444; transform: rotate(-1.5deg); }
+
+  /* Tiny number badge */
+  .wf-num { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:99px; background:#1a1a1a; color:#fff; font-size: 10px; font-weight: 600; }
+
+  /* Bed cell for nurse station */
+  .bed { border: 1.5px solid #1a1a1a; border-radius: 8px; padding: 8px; font-size: 11px; min-height: 64px; position:relative; background:#fff; }
+  .bed .bednum { position:absolute; top:6px; right:8px; font-family:'JetBrains Mono', monospace; font-size:10px; color:#555; }
+
+  /* Recording dark surface */
+  .wf-dark { background: #0f172a; color: #e2e8f0; border-radius: 12px; }
+  .wf-dark .wf-box, .wf-dark .wf-card { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  .wf-dark .wf-card-dash { background: #1e293b; border-color: #475569; color: #e2e8f0; }
+  .wf-dark .wf-chip { background:#1e293b; border-color:#475569; color:#cbd5e1; }
+  .wf-dark .wf-row { border-color: rgba(255,255,255,0.08); color:#cbd5e1; }
+  .wf-dark .wf-btn { background:#1e293b; border-color:#475569; color:#e2e8f0; }
+  .wf-dark .wf-btn-primary { background:#0EA5E9; border-color:#0EA5E9; color:#fff; }
+
+  /* Wavy bottom border like a torn note */
+  .wf-screen-note { font-family:'Caveat', cursive; color:#0EA5E9; font-size: 18px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="wf-shell.jsx"></script>
+<script type="text/babel" src="wf-screens-a.jsx"></script>
+<script type="text/babel" src="wf-screens-b.jsx"></script>
+<script type="text/babel" src="wf-app.jsx"></script>
+</body>
+</html>
