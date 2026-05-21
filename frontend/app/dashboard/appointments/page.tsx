@@ -32,14 +32,14 @@ function Icon({ d, d2, size = 14 }: { d: string; d2?: string; size?: number }) {
 }
 
 const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
-  scheduled:  { bg: "#E0F2FE", text: "#0369a1" },
+  scheduled:  { bg: "#ffe4e6", text: "#9f1239" },
   confirmed:  { bg: "#DCFCE7", text: "#15803D" },
   completed:  { bg: "#F3F4F6", text: "#374151" },
   cancelled:  { bg: "#FEF2F2", text: "#991B1B" },
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  consultation: "#0EA5E9",
+  consultation: "#e11d48",
   echo: "#8B5CF6",
   cath: "#F59E0B",
   followup: "#10B981",
@@ -132,7 +132,7 @@ export default function AppointmentsPage() {
   const apptByTime: Record<string, Appointment | undefined> = {};
   appointments.forEach(a => { apptByTime[a.slot_time] = a; });
 
-  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white";
+  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white";
   const inputSty = { border: "1.5px solid #d4d4d2" };
 
   return (
@@ -141,7 +141,7 @@ export default function AppointmentsPage() {
       <div className="flex items-center justify-between px-5 h-[72px] bg-white sticky top-0 z-10 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
         <div className="flex items-center gap-3">
           <h1 className="font-hand text-2xl font-bold text-gray-900">Appointment Bot</h1>
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E0F2FE] text-[#0369a1]">Cardiology Scheduling</span>
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#ffe4e6] text-[#9f1239]">Cardiology Scheduling</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">{appointments.length} appt{appointments.length !== 1 ? "s" : ""} today</span>
@@ -156,7 +156,7 @@ export default function AppointmentsPage() {
             onClick={() => setSelectedDate(d)}
             className="shrink-0 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer"
             style={selectedDate === d
-              ? { background: "#0EA5E9", color: "#fff", border: "1.5px solid #0EA5E9" }
+              ? { background: "#e11d48", color: "#fff", border: "1.5px solid #e11d48" }
               : { background: "#fff", color: "#6B7280", border: "1.5px solid #d4d4d2" }
             }
           >
@@ -195,7 +195,7 @@ export default function AppointmentsPage() {
               const appt = apptByTime[slot.time];
               if (appt) {
                 const badge = STATUS_BADGE[appt.status] || STATUS_BADGE.scheduled;
-                const typeColor = TYPE_COLORS[appt.appt_type] || "#0EA5E9";
+                const typeColor = TYPE_COLORS[appt.appt_type] || "#e11d48";
                 return (
                   <div key={slot.time} className="bg-white rounded-xl p-3" style={{ border: `1.5px solid ${typeColor}` }}>
                     <div className="flex items-center justify-between mb-1.5">
@@ -230,11 +230,11 @@ export default function AppointmentsPage() {
                 <button
                   key={slot.time}
                   onClick={() => openForm(slot.time)}
-                  className="rounded-xl p-3 text-left hover:bg-[#F0F9FF] transition cursor-pointer group"
+                  className="rounded-xl p-3 text-left hover:bg-[#fff1f2] transition cursor-pointer group"
                   style={{ border: "1.5px dashed #d4d4d2" }}
                 >
-                  <span className="text-xs font-mono font-bold text-gray-400 group-hover:text-[#0EA5E9]">{slot.time}</span>
-                  <p className="text-[10px] text-gray-300 group-hover:text-[#0EA5E9] mt-1 flex items-center gap-1">
+                  <span className="text-xs font-mono font-bold text-gray-400 group-hover:text-[#e11d48]">{slot.time}</span>
+                  <p className="text-[10px] text-gray-300 group-hover:text-[#e11d48] mt-1 flex items-center gap-1">
                     <Icon d="M12 5v14M5 12h14" size={10} />
                     Book slot
                   </p>
@@ -276,8 +276,8 @@ export default function AppointmentsPage() {
             <button
               onClick={book}
               disabled={saving || (!patientName.trim() && !patientId.trim())}
-              className="w-full py-2.5 text-xs font-semibold bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
-              style={{ boxShadow: "2px 2px 0 #0369a1" }}
+              className="w-full py-2.5 text-xs font-semibold bg-[#e11d48] text-white rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+              style={{ boxShadow: "2px 2px 0 #9f1239" }}
             >
               {saving ? "Booking…" : "Book Appointment"}
             </button>

@@ -76,9 +76,9 @@ function BedCard({ bed, selected, onClick }: { bed: BedState; selected: boolean;
       onClick={onClick}
       className="w-full text-left rounded-xl p-3 transition cursor-pointer"
       style={{
-        border: `1.5px solid ${selected ? "#0EA5E9" : s.border}`,
-        background: selected ? "#E0F2FE" : s.bg,
-        boxShadow: selected ? "2px 2px 0 #0EA5E9" : undefined,
+        border: `1.5px solid ${selected ? "#e11d48" : s.border}`,
+        background: selected ? "#ffe4e6" : s.bg,
+        boxShadow: selected ? "2px 2px 0 #e11d48" : undefined,
       }}
     >
       <div className="flex items-center justify-between mb-1.5">
@@ -248,7 +248,7 @@ export default function NursePage() {
     setDrips(d => d.map((dr, j) => j === i ? { ...dr, [k]: v } : dr));
   const removeDrip = (i: number) => setDrips(d => d.filter((_, j) => j !== i));
 
-  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white";
+  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white";
   const inputSty = { border: "1.5px solid #d4d4d2" };
 
   return (
@@ -259,7 +259,7 @@ export default function NursePage() {
         <div className="flex items-center justify-between px-5 h-[72px] bg-white sticky top-0 z-10 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-3">
             <h1 className="font-hand text-2xl font-bold text-gray-900">Nurse Station</h1>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E0F2FE] text-[#0369a1]">CCU / ICU</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#ffe4e6] text-[#9f1239]">CCU / ICU</span>
           </div>
           <button
             onClick={loadBeds}
@@ -312,8 +312,8 @@ export default function NursePage() {
             <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
 
               {/* Voice log */}
-              <div className="bg-[#F0FAFB] rounded-xl p-3" style={{ border: "1.5px solid #bae6fd" }}>
-                <p className="text-[10px] font-semibold text-[#0369a1] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <div className="bg-[#fff1f2] rounded-xl p-3" style={{ border: "1.5px solid #fecdd3" }}>
+                <p className="text-[10px] font-semibold text-[#9f1239] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={11} />
                   Voice Log
                 </p>
@@ -326,7 +326,7 @@ export default function NursePage() {
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                     style={recording
                       ? { background: "#FEF2F2", border: "1.5px solid #EF4444", color: "#EF4444" }
-                      : { background: "#E0F2FE", border: "1.5px solid #0EA5E9", color: "#0369a1" }
+                      : { background: "#ffe4e6", border: "1.5px solid #e11d48", color: "#9f1239" }
                     }
                   >
                     {recording ? (
@@ -344,9 +344,9 @@ export default function NursePage() {
                 </div>
 
                 <div className="flex items-center gap-2 mb-1.5">
-                  <div className="flex-1 h-px bg-[#bae6fd]" />
-                  <span className="text-[9px] text-[#0369a1] font-medium">or type</span>
-                  <div className="flex-1 h-px bg-[#bae6fd]" />
+                  <div className="flex-1 h-px bg-[#fecdd3]" />
+                  <span className="text-[9px] text-[#9f1239] font-medium">or type</span>
+                  <div className="flex-1 h-px bg-[#fecdd3]" />
                 </div>
 
                 <textarea
@@ -355,18 +355,18 @@ export default function NursePage() {
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitVoice(); } }}
                   placeholder={"e.g. BP 100/70 HR 88 SpO2 96 dopamine 8 mcg/kg/min"}
                   rows={2}
-                  className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none bg-white resize-none focus:ring-2 focus:ring-[#0EA5E9]"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none bg-white resize-none focus:ring-2 focus:ring-[#e11d48]"
                   style={inputSty}
                 />
                 <button
                   onClick={submitVoice}
                   disabled={voiceParsing || !voiceText.trim()}
-                  className="mt-1.5 w-full py-1.5 text-xs font-semibold bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
+                  className="mt-1.5 w-full py-1.5 text-xs font-semibold bg-[#e11d48] text-white rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
                 >
                   {voiceParsing ? "Parsing…" : "Parse & Log"}
                 </button>
                 {voiceResult && !("error" in voiceResult) && (
-                  <p className="text-[10px] text-[#0369a1] mt-1.5">
+                  <p className="text-[10px] text-[#9f1239] mt-1.5">
                     Parsed: {Object.entries(voiceResult).filter(([k]) => k !== "drips").map(([k, v]) => `${k.toUpperCase()} ${v}`).join(" · ")}
                     {(voiceResult.drips as Drip[])?.length ? ` · ${(voiceResult.drips as Drip[]).map(d => `${d.name} ${d.rate} ${d.unit}`).join(", ")}` : ""}
                   </p>
@@ -411,7 +411,7 @@ export default function NursePage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-[10px] text-gray-500">IV Drips</label>
-                      <button onClick={addDrip} className="text-[10px] text-[#0EA5E9] hover:underline cursor-pointer font-medium">+ Add</button>
+                      <button onClick={addDrip} className="text-[10px] text-[#e11d48] hover:underline cursor-pointer font-medium">+ Add</button>
                     </div>
                     {drips.map((d, i) => (
                       <div key={i} className="flex gap-1 mb-1.5 items-center">
@@ -436,8 +436,8 @@ export default function NursePage() {
                   <button
                     onClick={submitVitals}
                     disabled={saving}
-                    className="w-full py-2 text-xs font-semibold bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
-                    style={{ boxShadow: "2px 2px 0 #0369a1" }}
+                    className="w-full py-2 text-xs font-semibold bg-[#e11d48] text-white rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+                    style={{ boxShadow: "2px 2px 0 #9f1239" }}
                   >
                     {saving ? "Saving…" : "Log Vitals"}
                   </button>

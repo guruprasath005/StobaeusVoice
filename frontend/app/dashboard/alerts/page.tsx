@@ -178,7 +178,7 @@ export default function AlertsPage() {
           <SectionCard
             title="Echo / Cath Reports Needing Impression"
             count={data?.pending_echo_reports.length ?? 0}
-            color="#0EA5E9"
+            color="#e11d48"
           >
             {!data?.pending_echo_reports.length ? (
               <EmptyRow label="No reports waiting for impression" />
@@ -188,23 +188,23 @@ export default function AlertsPage() {
                   <button
                     key={r.report_id}
                     onClick={() => router.push(`/dashboard/echo/${r.report_id}`)}
-                    className="w-full flex items-start gap-4 px-5 py-3 hover:bg-[#F0FAFB] transition text-left cursor-pointer"
+                    className="w-full flex items-start gap-4 px-5 py-3 hover:bg-[#fff1f2] transition text-left cursor-pointer"
                     style={{ borderBottom: i < data.pending_echo_reports.length - 1 ? "1px dashed #ececea" : "none" }}
                   >
-                    <div className="w-8 h-8 rounded-lg bg-[#E0F2FE] flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#ffe4e6] flex items-center justify-center shrink-0 mt-0.5">
                       <Icon d="M22 12h-4l-3 9L9 3l-3 9H2" size={14} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <p className="text-xs font-semibold text-gray-800">{r.patient_display || r.patient_id}</p>
-                        <span className="text-[10px] bg-[#E0F2FE] text-[#0369a1] px-1.5 py-0.5 rounded font-medium">
+                        <span className="text-[10px] bg-[#ffe4e6] text-[#9f1239] px-1.5 py-0.5 rounded font-medium">
                           {TEMPLATE_LABELS[r.template] ?? r.template}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-400">No impression generated yet</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-[10px] text-[#0EA5E9] font-medium">Open →</p>
+                      <p className="text-[10px] text-[#e11d48] font-medium">Open →</p>
                       <p className="text-[10px] text-gray-400 mt-0.5">{formatRelTime(r.created_at)}</p>
                     </div>
                   </button>

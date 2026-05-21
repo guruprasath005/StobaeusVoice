@@ -25,7 +25,7 @@ function Field({ label, value, onChange, type = "text", readOnly = false, hint }
         className={`w-full px-3 py-2 text-sm rounded-lg outline-none transition ${
           readOnly
             ? "bg-gray-50 text-gray-500 cursor-default"
-            : "bg-white focus:ring-2 focus:ring-[#0EA5E9]"
+            : "bg-white focus:ring-2 focus:ring-[#e11d48]"
         }`}
         style={{ border: `1.5px solid ${readOnly ? "#ececea" : "#d4d4d2"}` }}
       />
@@ -51,7 +51,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 // ── Role badge ─────────────────────────────────────────────────────
 
 const ROLE_COLORS: Record<string, string> = {
-  cardiologist: "#0EA5E9",
+  cardiologist: "#e11d48",
   cardiac_surgeon: "#8B5CF6",
   cardiac_nurse: "#10B981",
   admin: "#F59E0B",
@@ -153,8 +153,8 @@ export default function SettingsPage() {
                 <button
                   onClick={saveProfile}
                   disabled={profileSaving || !fullName.trim()}
-                  className="flex items-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
-                  style={{ boxShadow: "2px 2px 0 #0369a1" }}
+                  className="flex items-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+                  style={{ boxShadow: "2px 2px 0 #9f1239" }}
                 >
                   {profileSaving ? "Saving…" : "Save Profile"}
                 </button>

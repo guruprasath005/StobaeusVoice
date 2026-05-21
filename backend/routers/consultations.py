@@ -6,6 +6,7 @@ from database import get_db, Consultation, Patient, PatientClinical, Prescriptio
 from routers.auth import get_current_user, require_admin, assert_owner, User
 from services.transcription import transcribe_audio
 from services.note_generation import generate_soap_note
+from services.translation import translate_to_english
 from audit import log_access
 from datetime import datetime, timezone, timedelta
 import uuid
@@ -285,6 +286,11 @@ async def generate_note(session_id: str, db: Session = Depends(get_db), current_
     assert_owner(c.doctor_id, current_user)
     if not c.transcript:
         raise HTTPException(400, "No transcript available")
+
+    # Normalise the dictation to English before note generation — the doctor
+    # may have dictated in Tamil. The stored transcript becomes the English one.
+    c.transcript = await translate_to_english(c.transcript)
+    db.commit()
 
     # Fetch clinical context (no PII) for LLM prompt
     clinical = {}

@@ -35,8 +35,8 @@ All 14 screens are in `design/StobaeusVoice Wireframes.html`. Open it in a brows
 | 14 | Settings | Profile, EMR integrations, language, privacy, account |
 
 **Design system:**
-- Colors: `#0EA5E9` teal-blue (primary), `#10B981` green (success), `#F59E0B` amber (warning), `#EF4444` red (critical)
-- Fonts: Kalam (handwritten headings), Inter (body), JetBrains Mono (IDs/times)
+- Colors: `#E11D48` red-pink (primary), `#10B981` green (success), `#F59E0B` amber (warning), `#EF4444` red (critical)
+- Fonts: Poppins everywhere — headings, body, IDs/times (closest free match to Google Sans, which is proprietary and unavailable via Google Fonts)
 - Cards: 12px radius, 1.5px solid border, white background
 - Sidebar: 200px, always present, `StobaeusVoice` branding
 - All screens share same 3-column shell: sidebar + main + right panel
@@ -346,7 +346,7 @@ CREATE TABLE consultations (
 
 ## Key Constraints to Remember
 - **No dark theme anywhere** — Active Consultation was changed from dark to light (see chat log)
-- **Teal `#0EA5E9` is the ONLY product accent** — red/amber/green reserved strictly for clinical severity signals
+- **Red-pink `#E11D48` is the product accent** — rose scale used for all branding/primary UI. ⚠️ Tradeoff: the red-pink brand accent sits visually close to the `#EF4444` critical-alert red, so clinical severity must be conveyed with icons/labels/badges (not colour alone). Green `#10B981` and amber `#F59E0B` remain reserved for clinical signals.
 - **DPDP compliance is non-negotiable** — never route patient audio or data outside Azure India region
 - **ABDM FHIR format** — all clinical output must be FHIR R4 compatible; ABDM is now mandatory (not optional) for Indian healthcare providers as of 2024
 - **Indian accent handling** — Whisper fine-tuned, Sarvam AI (Saarika-2.5) for 22 Indian regional languages; code-switched Hinglish is the norm in North Indian wards

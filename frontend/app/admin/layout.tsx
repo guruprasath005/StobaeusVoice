@@ -50,8 +50,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Branding */}
         <div className="px-3 pt-4 pb-3" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#0EA5E9] text-white flex items-center justify-center font-bold text-sm shrink-0">S</div>
-            <span className="font-hand font-bold text-base">Stobaeus<span className="text-[#0EA5E9]">Voice</span></span>
+            <div className="w-7 h-7 rounded-lg bg-[#e11d48] text-white flex items-center justify-center font-bold text-sm shrink-0">S</div>
+            <span className="font-hand font-bold text-base">Stobaeus<span className="text-[#e11d48]">Voice</span></span>
           </div>
           <p className="text-[10px] text-gray-400 mt-0.5 ml-9 tracking-wide uppercase">Admin</p>
         </div>
@@ -65,7 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  active ? "bg-[#E0F2FE] text-[#0EA5E9]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                  active ? "bg-[#ffe4e6] text-[#e11d48]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
                 }`}
               >
                 {item.icon}
@@ -78,7 +78,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* User */}
         <div className="px-3 py-3" style={{ borderTop: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-[#0EA5E9] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+            <div className="w-7 h-7 rounded-full bg-[#e11d48] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
               A
             </div>
             <div className="flex-1 min-w-0">

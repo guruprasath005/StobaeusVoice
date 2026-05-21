@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 from database import init_db
-from routers import patients, consultations, auth, echo, prescriptions, discharge, nurse, ipd, voice_bot, appointments, radiology
+from routers import patients, consultations, auth, echo, prescriptions, discharge, nurse, ipd, voice_bot, appointments, radiology, streaming
 
 load_dotenv()
 
@@ -29,6 +29,7 @@ app.include_router(ipd.router)
 app.include_router(voice_bot.router)
 app.include_router(appointments.router)
 app.include_router(radiology.router)
+app.include_router(streaming.router)
 
 @app.on_event("startup")
 def on_startup():

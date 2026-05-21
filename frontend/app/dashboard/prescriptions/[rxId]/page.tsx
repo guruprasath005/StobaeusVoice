@@ -260,13 +260,13 @@ function DrugRow({ drug, index, onChange, onRemove }: {
           value={drug.dose}
           onChange={e => onChange(index, "dose", e.target.value)}
           placeholder="Dose"
-          className="w-20 px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] text-center"
+          className="w-20 px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] text-center"
           style={{ border: "1px solid #d4d4d2" }}
         />
         <select
           value={drug.freq}
           onChange={e => onChange(index, "freq", e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] bg-white"
+          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white"
           style={{ border: "1px solid #d4d4d2" }}
         >
           {FREQS.map(f => <option key={f} value={f}>{f}</option>)}
@@ -274,7 +274,7 @@ function DrugRow({ drug, index, onChange, onRemove }: {
         <select
           value={drug.duration}
           onChange={e => onChange(index, "duration", e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] bg-white"
+          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white"
           style={{ border: "1px solid #d4d4d2" }}
         >
           <option value="">Duration…</option>
@@ -287,7 +287,7 @@ function DrugRow({ drug, index, onChange, onRemove }: {
           value={drug.instructions}
           onChange={e => onChange(index, "instructions", e.target.value)}
           placeholder="Special instructions (e.g., take after food)"
-          className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] text-gray-500"
+          className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] text-gray-500"
           style={{ border: "1px solid #ececea" }}
         />
       </div>
@@ -338,14 +338,14 @@ function DrugSearch({ onAdd }: { onAdd: (d: DrugItem) => void }) {
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder="Search drug to add… (e.g. Aspirin, Atorvastatin)"
-          className="flex-1 px-3 py-1.5 text-xs rounded-xl outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+          className="flex-1 px-3 py-1.5 text-xs rounded-xl outline-none focus:ring-2 focus:ring-[#e11d48]"
           style={{ border: "1.5px solid #d4d4d2" }}
           onKeyDown={e => { if (e.key === "Enter" && filtered.length > 0) select(filtered[0]); }}
         />
         {query.trim() && (
           <button
             onClick={addCustom}
-            className="px-3 py-1.5 text-xs bg-[#E0F2FE] text-[#0369A1] rounded-xl hover:bg-[#bae6fd] cursor-pointer font-medium"
+            className="px-3 py-1.5 text-xs bg-[#ffe4e6] text-[#9f1239] rounded-xl hover:bg-[#fecdd3] cursor-pointer font-medium"
           >
             Add custom
           </button>
@@ -361,7 +361,7 @@ function DrugSearch({ onAdd }: { onAdd: (d: DrugItem) => void }) {
             <button
               key={entry.name}
               onClick={() => select(entry)}
-              className="w-full flex items-center justify-between px-3 py-2 hover:bg-[#E0F2FE] text-left transition cursor-pointer"
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-[#ffe4e6] text-left transition cursor-pointer"
               style={{ borderBottom: "1px dashed #ececea" }}
             >
               <div>
@@ -532,7 +532,7 @@ export default function PrescriptionDetailPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <p className="text-sm text-red-600">{error || "Prescription not found"}</p>
-        <button onClick={() => router.push("/dashboard/prescriptions")} className="text-xs text-[#0EA5E9] hover:underline cursor-pointer">← Back</button>
+        <button onClick={() => router.push("/dashboard/prescriptions")} className="text-xs text-[#e11d48] hover:underline cursor-pointer">← Back</button>
       </div>
     );
   }
@@ -578,7 +578,7 @@ export default function PrescriptionDetailPage() {
           {/* Diagnosis */}
           <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
             <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-              <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+              <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
               <h3 className="font-hand text-sm font-bold text-gray-900">Diagnosis / Indication</h3>
             </div>
             <input
@@ -593,7 +593,7 @@ export default function PrescriptionDetailPage() {
           <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
             <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px dashed #d4d4d2" }}>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+                <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
                 <h3 className="font-hand text-sm font-bold text-gray-900">Medications</h3>
               </div>
               <span className="text-[10px] text-gray-400">{drugs.length} drugs</span>
@@ -622,7 +622,7 @@ export default function PrescriptionDetailPage() {
           {/* Notes */}
           <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
             <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-              <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+              <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
               <h3 className="font-hand text-sm font-bold text-gray-900">Clinical Notes</h3>
             </div>
             <textarea
@@ -645,8 +645,8 @@ export default function PrescriptionDetailPage() {
 
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
           {/* Patient card */}
-          <div className="rounded-xl p-3 bg-[#F0F9FF]" style={{ border: "1px solid #BAE6FD" }}>
-            <p className="text-[10px] font-bold text-[#0369A1] uppercase tracking-wide mb-1.5">Patient</p>
+          <div className="rounded-xl p-3 bg-[#fff1f2]" style={{ border: "1px solid #fecdd3" }}>
+            <p className="text-[10px] font-bold text-[#9f1239] uppercase tracking-wide mb-1.5">Patient</p>
             <p className="text-sm font-semibold text-gray-800">{rx.patient_display || "Anonymous"}</p>
             {rx.patient_id && <p className="text-[10px] font-mono text-gray-500 mt-0.5">{rx.patient_id}</p>}
             {rx.patient_phone && (

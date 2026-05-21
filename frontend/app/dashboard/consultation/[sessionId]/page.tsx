@@ -36,7 +36,7 @@ function Waveform({ active }: { active: boolean }) {
           className="rounded-full transition-all"
           style={{
             width: 3,
-            background: active ? "#0EA5E9" : "#d4d4d2",
+            background: active ? "#e11d48" : "#d4d4d2",
             height: active ? h * 2.2 : 4,
             animation: active ? `pulse-bar ${0.5 + i * 0.06}s ease-in-out infinite alternate` : "none",
             opacity: active ? 0.6 + (i % 3) * 0.2 : 0.4,
@@ -80,7 +80,7 @@ function MicCircle({ recording, onClick, disabled }: {
         className="absolute rounded-full"
         style={{
           inset: -28,
-          border: `2px dashed #0EA5E9`,
+          border: `2px dashed #e11d48`,
           opacity: recording ? 0.4 : 0.15,
           animation: recording ? "spin-slow 8s linear infinite" : "none",
         }}
@@ -90,7 +90,7 @@ function MicCircle({ recording, onClick, disabled }: {
         className="absolute rounded-full transition-all duration-500"
         style={{
           inset: -14,
-          border: `2px solid #0EA5E9`,
+          border: `2px solid #e11d48`,
           opacity: recording ? 0.65 : 0.2,
         }}
       />
@@ -113,15 +113,15 @@ function MicCircle({ recording, onClick, disabled }: {
         style={{
           width: 160,
           height: 160,
-          background: recording ? "#0EA5E9" : "#E0F2FE",
+          background: recording ? "#e11d48" : "#ffe4e6",
           boxShadow: recording
             ? "0 0 60px rgba(14,165,233,0.55), 0 4px 24px rgba(14,165,233,0.35)"
             : "0 4px 20px rgba(14,165,233,0.15)",
-          border: "2.5px solid " + (recording ? "#0284c7" : "#bae6fd"),
+          border: "2.5px solid " + (recording ? "#be123c" : "#fecdd3"),
         }}
       >
         <svg width={56} height={56} viewBox="0 0 24 24" fill="none"
-          stroke={recording ? "#fff" : "#0EA5E9"} strokeWidth={1.6}
+          stroke={recording ? "#fff" : "#e11d48"} strokeWidth={1.6}
           strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
           <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
@@ -148,12 +148,12 @@ export default function ActiveConsultationPage() {
 
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [interim, setInterim] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [uploadingChunk, setUploadingChunk] = useState(false);
   const [error, setError] = useState("");
 
   const mediaRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
   const transcriptRef = useRef("");
 
   const timer = useTimer(recording);
@@ -166,8 +166,7 @@ export default function ActiveConsultationPage() {
         setPatientId(data.patient_id);
         setPatientDisplay(data.patient_display || data.patient_id);
         if (!data.patient_id.startsWith("PT-ANON")) {
-          fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/patients/${data.patient_id}/clinical`)
-            .then(r => r.ok ? r.json() : null)
+          api.getClinicalContext(data.patient_id)
             .then(c => { if (c) setClinical(c); })
             .catch(() => {});
         }
@@ -183,6 +182,20 @@ export default function ActiveConsultationPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
+  // Release the mic and close the live-transcription socket on unmount.
+  useEffect(() => {
+    return () => {
+      mediaRef.current?.stream.getTracks().forEach(t => t.stop());
+      wsRef.current?.close();
+    };
+  }, []);
+
+  // Append a finalized transcript segment. transcriptRef is the source of truth.
+  const appendFinal = useCallback((text: string) => {
+    transcriptRef.current = (transcriptRef.current ? transcriptRef.current + " " : "") + text;
+    setTranscript(transcriptRef.current);
+  }, []);
+
   const startRecording = useCallback(async () => {
     setError("");
     try {
@@ -193,46 +206,69 @@ export default function ActiveConsultationPage() {
         ? "audio/webm"
         : "audio/ogg;codecs=opus";
 
+      // Open the live-transcription WebSocket. WebSockets can't send headers,
+      // so the JWT travels as a query param.
+      const token = typeof window !== "undefined" ? localStorage.getItem("sv_token") || "" : "";
+      const wsUrl =
+        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/^http/, "ws") +
+        `/ws/transcribe?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}`;
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onmessage = ev => {
+        let m: { type: string; text?: string; is_final?: boolean; message?: string };
+        try { m = JSON.parse(ev.data); } catch { return; }
+        if (m.type === "error") { setError(m.message || "Live transcription error."); return; }
+        if (m.type !== "transcript" || !m.text) return;
+        if (m.is_final) { appendFinal(m.text); setInterim(""); }
+        else { setInterim(m.text); }
+      };
+      ws.onerror = () =>
+        setError("Live transcription connection failed — check the backend and DEEPGRAM_API_KEY.");
+
+      await new Promise<void>((resolve, reject) => {
+        ws.onopen = () => resolve();
+        setTimeout(() => reject(new Error("ws timeout")), 5000);
+      });
+
       const mr = new MediaRecorder(stream, { mimeType });
       mediaRef.current = mr;
-      chunksRef.current = [];
-
       mr.ondataavailable = e => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(e.data);
+        }
       };
-
-      mr.start(5000);
+      mr.start(250); // 250ms chunks → low-latency streaming
       setRecording(true);
     } catch {
-      setError("Microphone access denied — please allow mic permission.");
+      setError("Could not start recording — allow mic permission and ensure the backend is running.");
+      wsRef.current?.close();
+      wsRef.current = null;
+      mediaRef.current?.stream.getTracks().forEach(t => t.stop());
     }
-  }, []);
+  }, [sessionId, appendFinal]);
 
   const stopRecording = useCallback(async () => {
     const mr = mediaRef.current;
-    if (!mr) return;
-
-    return new Promise<void>(resolve => {
-      mr.onstop = async () => {
-        mr.stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-        if (blob.size > 0) {
-          setUploadingChunk(true);
-          try {
-            const res = await api.transcribeAudio(sessionId, blob);
-            if (res.transcript) {
-              setTranscript(res.transcript);
-              transcriptRef.current = res.transcript;
-            }
-          } catch { /* transcript saved later on generate */ }
-          finally { setUploadingChunk(false); }
-        }
-        resolve();
-      };
+    if (mr && mr.state !== "inactive") {
       mr.stop();
-      setRecording(false);
-    });
-  }, [sessionId]);
+      mr.stream.getTracks().forEach(t => t.stop());
+    }
+    mediaRef.current = null;
+    setRecording(false);
+
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "stop" }));
+      // give Deepgram a moment to flush trailing final transcripts
+      await new Promise(r => setTimeout(r, 1200));
+      ws.close();
+    }
+    wsRef.current = null;
+
+    // fold any still-interim text into the transcript
+    setInterim(cur => { if (cur) appendFinal(cur); return ""; });
+  }, [appendFinal]);
 
   const stopAndGenerate = async () => {
     if (recording) await stopRecording();
@@ -243,7 +279,8 @@ export default function ActiveConsultationPage() {
     setGenerating(true);
     setError("");
     try {
-      await api.updateTranscript(sessionId, transcript || transcriptRef.current);
+      // transcriptRef is authoritative (updated synchronously while streaming).
+      await api.updateTranscript(sessionId, transcriptRef.current || transcript);
       await api.generateNote(sessionId);
       router.push(`/dashboard/consultation/${sessionId}/review`);
     } catch {
@@ -282,7 +319,7 @@ export default function ActiveConsultationPage() {
         {/* Avatar */}
         <div
           className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs font-bold"
-          style={{ background: "#E0F2FE", color: "#0369a1", border: "1.25px solid #1a1a1a" }}
+          style={{ background: "#ffe4e6", color: "#9f1239", border: "1.25px solid #1a1a1a" }}
         >
           {initials}
         </div>
@@ -344,22 +381,23 @@ export default function ActiveConsultationPage() {
           <div className="px-4 py-2.5 shrink-0 flex items-center justify-between" style={{ borderBottom: "1px dashed #d4d4d2" }}>
             <span className="font-hand text-sm font-bold text-gray-700">Live transcript</span>
             <span className="text-[10px] text-gray-400">
-              {transcript.split(/\s+/).filter(Boolean).length} words
+              {(transcript + " " + interim).split(/\s+/).filter(Boolean).length} words
             </span>
           </div>
           <textarea
-            value={transcript}
+            value={recording ? transcript + (interim ? (transcript ? " " : "") + interim : "") : transcript}
             onChange={e => {
               setTranscript(e.target.value);
               transcriptRef.current = e.target.value;
             }}
-            placeholder={"Transcript will appear here as you speak…\n\nYou can also type or paste a transcript directly."}
+            readOnly={recording}
+            placeholder={"Your dictation appears here live as you speak…\n\nYou can also type or paste a transcript directly."}
             className="flex-1 p-4 text-xs text-gray-700 leading-relaxed outline-none resize-none bg-white"
           />
-          {uploadingChunk && (
-            <div className="px-4 py-2 shrink-0 flex items-center gap-2 text-[10px] text-[#0EA5E9]" style={{ borderTop: "1px dashed #d4d4d2" }}>
-              <div className="w-3 h-3 border-2 border-[#0EA5E9] border-t-transparent rounded-full animate-spin" />
-              Transcribing audio…
+          {recording && (
+            <div className="px-4 py-2 shrink-0 flex items-center gap-2 text-[10px] text-[#e11d48]" style={{ borderTop: "1px dashed #d4d4d2" }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#e11d48] animate-pulse" />
+              Live transcription active
             </div>
           )}
         </div>
@@ -374,14 +412,14 @@ export default function ActiveConsultationPage() {
           }}
         >
           {/* Mic */}
-          <MicCircle recording={recording} onClick={toggleRecording} disabled={uploadingChunk || generating} />
+          <MicCircle recording={recording} onClick={toggleRecording} disabled={generating} />
 
           {/* Status label */}
           <p
             className="font-hand text-xl mt-5 mb-3 transition-colors"
-            style={{ color: recording ? "#0EA5E9" : "#9ca3af" }}
+            style={{ color: recording ? "#e11d48" : "#9ca3af" }}
           >
-            {generating ? "Generating…" : uploadingChunk ? "Processing…" : recording ? "Listening…" : transcript ? "Paused" : "Ready"}
+            {generating ? "Generating…" : recording ? "Listening…" : transcript ? "Paused" : "Ready"}
           </p>
 
           {/* Waveform */}
@@ -396,7 +434,7 @@ export default function ActiveConsultationPage() {
           <div className="mt-5 flex flex-col gap-2 w-full max-w-[220px]">
             <button
               onClick={toggleRecording}
-              disabled={uploadingChunk || generating}
+              disabled={generating}
               className={`w-full flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer disabled:opacity-40 ${
                 recording
                   ? "text-[#EF4444] hover:bg-red-50"
@@ -414,9 +452,9 @@ export default function ActiveConsultationPage() {
 
             <button
               onClick={stopAndGenerate}
-              disabled={generating || uploadingChunk}
-              className="w-full flex items-center justify-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-40"
-              style={{ boxShadow: "2px 2px 0 #0369a1" }}
+              disabled={generating}
+              className="w-full flex items-center justify-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-40"
+              style={{ boxShadow: "2px 2px 0 #9f1239" }}
             >
               {generating ? (
                 <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Generating…</>
@@ -432,7 +470,7 @@ export default function ActiveConsultationPage() {
           <div className="px-4 py-2.5 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
             <span className="font-hand text-sm font-bold text-gray-700">
               Clinical context{" "}
-              <span className="text-[10px] font-normal text-[#0EA5E9] not-italic">● live</span>
+              <span className="text-[10px] font-normal text-[#e11d48] not-italic">● live</span>
             </span>
           </div>
 
@@ -440,10 +478,10 @@ export default function ActiveConsultationPage() {
             {/* Patient ID chip */}
             <div
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
-              style={{ background: "#F0F9FF", border: "1px dashed #bae6fd" }}
+              style={{ background: "#fff1f2", border: "1px dashed #fecdd3" }}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0EA5E9] shrink-0" />
-              <p className="text-[10px] font-mono text-[#0369a1] font-semibold">{patientId || "PT-ANON"}</p>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#e11d48] shrink-0" />
+              <p className="text-[10px] font-mono text-[#9f1239] font-semibold">{patientId || "PT-ANON"}</p>
             </div>
 
             {patientId?.startsWith("PT-ANON") && (

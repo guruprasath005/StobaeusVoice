@@ -16,8 +16,7 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.webm") -> 
         response = client.audio.transcriptions.create(
             model="whisper-1",
             file=audio_file,
-            language="hi",          # Hindi primary; Whisper auto-detects English too
-            response_format="text",
+            response_format="text",  # language auto-detected (English / Tamil)
         )
         return response
     except APIError as e:

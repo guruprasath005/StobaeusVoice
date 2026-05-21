@@ -33,13 +33,13 @@ function Icon({ d, d2, size = 14 }: { d: string; d2?: string; size?: number }) {
 function SectionHead({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 py-2 mb-2" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-      <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+      <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
       <h3 className="font-hand text-sm font-bold text-gray-900">{label}</h3>
     </div>
   );
 }
 
-const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white";
+const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white";
 const inputSty = { border: "1.5px solid #d4d4d2" };
 const labelCls = "block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1";
 
@@ -112,7 +112,7 @@ function EchoForm({ findings, onChange }: {
                 value={f("rwma")}
                 onChange={e => onChange("rwma", e.target.value)}
                 placeholder="e.g. Hypokinesia of anterior wall and apex consistent with LAD territory..."
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white resize-none"
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white resize-none"
                 style={{ ...inputSty, minHeight: 60 }}
               />
             </Field>
@@ -516,7 +516,7 @@ function HolterForm({ findings, onChange }: {
 function IcdRow({ code, description, onRemove }: { code: string; description: string; onRemove: () => void }) {
   return (
     <div className="flex items-center gap-2 py-1.5" style={{ borderBottom: "1px dashed #ececea" }}>
-      <span className="text-[11px] font-mono font-bold text-[#0EA5E9] w-16 shrink-0">{code}</span>
+      <span className="text-[11px] font-mono font-bold text-[#e11d48] w-16 shrink-0">{code}</span>
       <span className="flex-1 text-[11px] text-gray-700 truncate">{description}</span>
       <button onClick={onRemove} className="text-gray-300 hover:text-red-400 cursor-pointer shrink-0 text-base leading-none">×</button>
     </div>
@@ -569,7 +569,7 @@ function DictationWidget({ reportId, onTranscript }: { reportId: string; onTrans
       className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50 ${
         recording
           ? "bg-red-50 text-red-600 border border-red-200"
-          : "bg-[#E0F2FE] text-[#0369a1] hover:bg-[#bae6fd]"
+          : "bg-[#ffe4e6] text-[#9f1239] hover:bg-[#fecdd3]"
       }`}
     >
       {transcribing ? (
@@ -586,7 +586,7 @@ function DictationWidget({ reportId, onTranscript }: { reportId: string; onTrans
 // ── TEMPLATE_LABELS ────────────────────────────────────────────────
 
 const TEMPLATE_META: Record<string, { label: string; color: string; bg: string }> = {
-  echo:        { label: "Echocardiogram", color: "#0EA5E9", bg: "#E0F2FE" },
+  echo:        { label: "Echocardiogram", color: "#e11d48", bg: "#ffe4e6" },
   cath:        { label: "Coronary Angiogram", color: "#EF4444", bg: "#FEE2E2" },
   stress_test: { label: "Stress Test (TMT)", color: "#F59E0B", bg: "#FEF3C7" },
   holter:      { label: "Holter Monitor", color: "#8B5CF6", bg: "#EDE9FE" },
@@ -676,7 +676,7 @@ export default function EchoReportPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <p className="text-sm text-red-600">Report not found</p>
-        <button onClick={() => router.push("/dashboard/echo")} className="text-xs text-[#0EA5E9] hover:underline cursor-pointer">← Back</button>
+        <button onClick={() => router.push("/dashboard/echo")} className="text-xs text-[#e11d48] hover:underline cursor-pointer">← Back</button>
       </div>
     );
   }
@@ -763,10 +763,10 @@ export default function EchoReportPage() {
             onClick={generateImpression}
             disabled={generating}
             className="w-full flex items-center justify-center gap-2 text-xs font-semibold py-2 rounded-lg border transition cursor-pointer disabled:opacity-50"
-            style={{ border: "1.5px solid #0EA5E9", color: "#0EA5E9" }}
+            style={{ border: "1.5px solid #e11d48", color: "#e11d48" }}
           >
             {generating ? (
-              <><div className="w-3 h-3 border-2 border-[#0EA5E9] border-t-transparent rounded-full animate-spin shrink-0" /> Generating…</>
+              <><div className="w-3 h-3 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin shrink-0" /> Generating…</>
             ) : (
               <><Icon d="M12 2L2 7l10 5 10-5-10-5z" d2="M2 17l10 5 10-5M2 12l10 5 10-5" size={12} /> Generate via AI</>
             )}
@@ -797,14 +797,14 @@ export default function EchoReportPage() {
               value={newIcd.code}
               onChange={e => setNewIcd(n => ({ ...n, code: e.target.value }))}
               placeholder="I25.10"
-              className="w-20 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] font-mono"
+              className="w-20 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] font-mono"
               style={{ border: "1.5px solid #d4d4d2" }}
             />
             <input
               value={newIcd.description}
               onChange={e => setNewIcd(n => ({ ...n, description: e.target.value }))}
               placeholder="Description"
-              className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9]"
+              className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48]"
               style={{ border: "1.5px solid #d4d4d2" }}
             />
             <button
@@ -813,7 +813,7 @@ export default function EchoReportPage() {
                 setIcdCodes(arr => [...arr, newIcd]);
                 setNewIcd({ code: "", description: "" });
               }}
-              className="px-2 py-1 text-[11px] bg-[#E0F2FE] text-[#0369a1] rounded-lg hover:bg-[#bae6fd] cursor-pointer font-medium"
+              className="px-2 py-1 text-[11px] bg-[#ffe4e6] text-[#9f1239] rounded-lg hover:bg-[#fecdd3] cursor-pointer font-medium"
             >+</button>
           </div>
         </div>

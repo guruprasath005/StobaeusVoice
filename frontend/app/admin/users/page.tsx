@@ -12,7 +12,7 @@ const ROLES = [
 ];
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  cardiologist:    { bg: "#E0F2FE", text: "#0369A1" },
+  cardiologist:    { bg: "#ffe4e6", text: "#9f1239" },
   cardiac_surgeon: { bg: "#EDE9FE", text: "#6D28D9" },
   cardiac_nurse:   { bg: "#FCE7F3", text: "#9D174D" },
   admin:           { bg: "#FEF3C7", text: "#92400E" },
@@ -119,8 +119,8 @@ export default function UsersPage() {
         </div>
         <button
           onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormError(""); }}
-          className="flex items-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#0284c7] transition cursor-pointer"
-          style={{ boxShadow: "2px 2px 0 #0369a1" }}
+          className="flex items-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#be123c] transition cursor-pointer"
+          style={{ boxShadow: "2px 2px 0 #9f1239" }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
           Add User
@@ -134,9 +134,9 @@ export default function UsersPage() {
             key={r}
             onClick={() => setFilter(r)}
             className={`text-xs px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-              filter === r ? "bg-[#0EA5E9] text-white" : "bg-white text-gray-500 hover:bg-gray-50"
+              filter === r ? "bg-[#e11d48] text-white" : "bg-white text-gray-500 hover:bg-gray-50"
             }`}
-            style={{ border: "1.5px solid", borderColor: filter === r ? "#0EA5E9" : "#e5e7eb" }}
+            style={{ border: "1.5px solid", borderColor: filter === r ? "#e11d48" : "#e5e7eb" }}
           >
             {r === "all" ? "All" : r.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
             <span className="ml-1.5 opacity-70">
@@ -233,7 +233,7 @@ export default function UsersPage() {
                   value={form.full_name}
                   onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                   placeholder="Dr. Priya Sharma"
-                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9]"
+                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48]"
                 />
               </div>
               <div>
@@ -244,7 +244,7 @@ export default function UsersPage() {
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   placeholder="priya@apollochennai.in"
-                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9]"
+                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48]"
                 />
               </div>
               <div>
@@ -256,7 +256,7 @@ export default function UsersPage() {
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   placeholder="Min. 6 characters"
-                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9]"
+                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48]"
                 />
               </div>
               <div>
@@ -264,7 +264,7 @@ export default function UsersPage() {
                 <select
                   value={form.role}
                   onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9] bg-white"
+                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48] bg-white"
                 >
                   {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
@@ -276,7 +276,7 @@ export default function UsersPage() {
                   value={form.hospital}
                   onChange={e => setForm(f => ({ ...f, hospital: e.target.value }))}
                   placeholder="Apollo Hospitals, Chennai"
-                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9]"
+                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48]"
                 />
               </div>
 
@@ -286,7 +286,7 @@ export default function UsersPage() {
 
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 text-xs text-gray-500 border border-gray-200 rounded-lg py-2.5 hover:bg-gray-50 cursor-pointer transition">Cancel</button>
-                <button type="submit" disabled={formLoading} className="flex-1 bg-[#0EA5E9] text-white text-xs font-semibold rounded-lg py-2.5 hover:bg-[#0284c7] transition disabled:opacity-50 cursor-pointer">
+                <button type="submit" disabled={formLoading} className="flex-1 bg-[#e11d48] text-white text-xs font-semibold rounded-lg py-2.5 hover:bg-[#be123c] transition disabled:opacity-50 cursor-pointer">
                   {formLoading ? "Creating…" : "Create User"}
                 </button>
               </div>
@@ -313,13 +313,13 @@ export default function UsersPage() {
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   placeholder="Min. 6 characters"
-                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9]"
+                  className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48]"
                 />
               </div>
               {resetError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{resetError}</p>}
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={() => setResetTarget(null)} className="flex-1 text-xs text-gray-500 border border-gray-200 rounded-lg py-2.5 hover:bg-gray-50 cursor-pointer transition">Cancel</button>
-                <button type="submit" className="flex-1 bg-[#0EA5E9] text-white text-xs font-semibold rounded-lg py-2.5 hover:bg-[#0284c7] transition cursor-pointer">Update Password</button>
+                <button type="submit" className="flex-1 bg-[#e11d48] text-white text-xs font-semibold rounded-lg py-2.5 hover:bg-[#be123c] transition cursor-pointer">Update Password</button>
               </div>
             </form>
           </div>

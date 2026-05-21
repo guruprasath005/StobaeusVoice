@@ -52,11 +52,11 @@ function FieldMicBtn({ reportId, onTranscript, disabled }: {
       disabled={working}
       title={rec ? "Stop dictating" : "Dictate this field"}
       className={`w-5 h-5 flex items-center justify-center rounded transition cursor-pointer disabled:opacity-50 shrink-0 ${
-        rec ? "text-red-500" : "text-gray-300 hover:text-[#0EA5E9]"
+        rec ? "text-red-500" : "text-gray-300 hover:text-[#e11d48]"
       }`}
     >
       {working ? (
-        <div className="w-3 h-3 border-2 border-[#0EA5E9] border-t-transparent rounded-full animate-spin" />
+        <div className="w-3 h-3 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
       ) : rec ? (
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse block" />
       ) : (
@@ -203,7 +203,7 @@ function Waveform({ active }: { active: boolean }) {
           className="rounded-full"
           style={{
             width: 2,
-            background: active ? "#0EA5E9" : "#d4d4d2",
+            background: active ? "#e11d48" : "#d4d4d2",
             height: active ? h * 1.8 : 3,
             animation: active ? `pulse-bar ${0.45 + i * 0.055}s ease-in-out infinite alternate` : "none",
           }}
@@ -267,7 +267,7 @@ function FieldRow({ label, value, onChange, disabled, reportId }: {
           />
         ) : (
           <p
-            className={`text-xs leading-relaxed cursor-pointer ${value ? "text-gray-800 hover:text-[#0369a1]" : "text-gray-300 italic"} transition-colors`}
+            className={`text-xs leading-relaxed cursor-pointer ${value ? "text-gray-800 hover:text-[#9f1239]" : "text-gray-300 italic"} transition-colors`}
             onClick={() => !disabled && setEditing(true)}
           >
             {value || "Click to edit or tap mic to dictate…"}
@@ -323,9 +323,9 @@ function DicomPlaceholder({ template, patientName }: { template: string; patient
         {/* Future DICOM note */}
         <div
           className="absolute bottom-3 left-3 right-3 px-2.5 py-1.5 rounded-lg text-center"
-          style={{ background: "rgba(14,165,233,0.08)", border: "1px dashed #bae6fd" }}
+          style={{ background: "rgba(14,165,233,0.08)", border: "1px dashed #fecdd3" }}
         >
-          <p className="text-[9px] text-[#0369a1] font-medium">
+          <p className="text-[9px] text-[#9f1239] font-medium">
             DICOM/PACS integration coming — images will load automatically via WADO-RS
           </p>
         </div>
@@ -541,8 +541,8 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
           <button
             onClick={isFinal ? undefined : finalize}
             disabled={finalizing || (!isFinal && !impression.trim())}
-            className="flex items-center gap-2 bg-[#0EA5E9] text-white px-4 py-2 text-xs font-semibold rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
-            style={{ boxShadow: "2px 2px 0 #0369a1" }}
+            className="flex items-center gap-2 bg-[#e11d48] text-white px-4 py-2 text-xs font-semibold rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+            style={{ boxShadow: "2px 2px 0 #9f1239" }}
           >
             <Icon d="M22 2L11 13M22 2L15 22l-4-9-9-4 19-7z" size={12} />
             {isFinal ? "Report Final" : finalizing ? "Finalizing…" : "Send to referring doctor"}
@@ -563,7 +563,7 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
               onClick={() => !active && router.push("/dashboard/radiology")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition cursor-pointer shrink-0"
               style={active
-                ? { background: "#0EA5E9", color: "#fff", border: "1.5px solid #0EA5E9" }
+                ? { background: "#e11d48", color: "#fff", border: "1.5px solid #e11d48" }
                 : { background: "#fff", color: "#374151", border: "1.25px solid #1a1a1a" }
               }
             >
@@ -606,7 +606,7 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition cursor-pointer disabled:opacity-50 ${
                   dictating
                     ? "bg-red-50 text-red-600"
-                    : "bg-gray-100 text-gray-500 hover:bg-[#E0F2FE] hover:text-[#0369a1]"
+                    : "bg-gray-100 text-gray-500 hover:bg-[#ffe4e6] hover:text-[#9f1239]"
                 }`}
               >
                 {dictTranscribing ? (
@@ -638,15 +638,15 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
             {/* Impression */}
             <div
               className="mt-3 rounded-xl p-4"
-              style={{ background: "#F0F9FF", border: "1.5px dashed #0EA5E9" }}
+              style={{ background: "#fff1f2", border: "1.5px dashed #e11d48" }}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-[#0369a1] uppercase tracking-widest">Impression</span>
+                <span className="text-[10px] font-bold text-[#9f1239] uppercase tracking-widest">Impression</span>
                 {!isFinal && (
                   <button
                     onClick={generateImpression}
                     disabled={aiLoading}
-                    className="flex items-center gap-1 text-[10px] text-[#0369a1] hover:underline cursor-pointer font-semibold"
+                    className="flex items-center gap-1 text-[10px] text-[#9f1239] hover:underline cursor-pointer font-semibold"
                   >
                     <Icon d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" size={10} />
                     {aiLoading ? "Generating…" : "AI draft"}
@@ -677,7 +677,7 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
                         disabled={isFinal}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] transition cursor-pointer"
                         style={selected
-                          ? { background: "#E0F2FE", border: "1.5px solid #0EA5E9", color: "#0369a1" }
+                          ? { background: "#ffe4e6", border: "1.5px solid #e11d48", color: "#9f1239" }
                           : { background: "#fff", border: "1.25px solid #d4d4d2", color: "#374151" }
                         }
                       >
@@ -708,7 +708,7 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
                 title={dictating ? "Stop dictating" : "Start dictating impression"}
               >
                 {dictTranscribing
-                  ? <div className="w-3.5 h-3.5 border-2 border-[#0EA5E9] border-t-transparent rounded-full animate-spin" />
+                  ? <div className="w-3.5 h-3.5 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
                   : dictating
                     ? <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse block" />
                     : <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={14} />
@@ -732,7 +732,7 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
           </div>
 
           <div className="px-4 py-3 shrink-0" style={{ borderTop: "1px dashed #d4d4d2" }}>
-            <p className="font-hand text-[11px] text-[#0EA5E9] leading-snug">
+            <p className="font-hand text-[11px] text-[#e11d48] leading-snug">
               ✎ Templates auto-fill structure — doctor only dictates findings.
             </p>
           </div>

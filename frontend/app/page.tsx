@@ -63,11 +63,11 @@ export default function LoginPage() {
         >
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-1">
-            <div className="w-9 h-9 rounded-lg bg-[#0EA5E9] text-white flex items-center justify-center font-bold text-lg">
+            <div className="w-9 h-9 rounded-lg bg-[#e11d48] text-white flex items-center justify-center font-bold text-lg">
               S
             </div>
             <span className="text-xl font-bold">
-              Stobaeus<span className="text-[#0EA5E9]">Voice</span>
+              Stobaeus<span className="text-[#e11d48]">Voice</span>
             </span>
           </div>
           <p className="text-center text-xs text-gray-500 mb-6">
@@ -83,7 +83,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="priya@apollochennai.in"
-                className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9]"
+                className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48]"
               />
             </div>
             <div>
@@ -94,7 +94,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0EA5E9]"
+                className="w-full border border-dashed border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#e11d48]"
               />
             </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#0EA5E9] text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-[#0284c7] transition disabled:opacity-50 cursor-pointer"
+              className="w-full bg-[#e11d48] text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-[#be123c] transition disabled:opacity-50 cursor-pointer"
             >
               {loading ? "Signing in…" : "Sign in →"}
             </button>

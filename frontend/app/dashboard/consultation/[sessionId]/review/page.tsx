@@ -53,7 +53,7 @@ function SoapSection({ label, value, onChange, rows = 4 }: {
   return (
     <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
       <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-        <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+        <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
         <h3 className="font-hand text-sm font-bold text-gray-900">{label}</h3>
       </div>
       <textarea
@@ -74,7 +74,7 @@ function IcdBadge({ code, description, onRemove }: {
 }) {
   return (
     <div className="flex items-center gap-2 py-1.5" style={{ borderBottom: "1px dashed #ececea" }}>
-      <span className="text-[11px] font-mono font-bold text-[#0EA5E9] w-16 shrink-0">{code}</span>
+      <span className="text-[11px] font-mono font-bold text-[#e11d48] w-16 shrink-0">{code}</span>
       <span className="flex-1 text-[11px] text-gray-700">{description}</span>
       <button onClick={onRemove} className="text-gray-300 hover:text-red-400 cursor-pointer shrink-0">×</button>
     </div>
@@ -192,7 +192,7 @@ export default function ReviewPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <p className="text-sm text-red-600">Consultation not found</p>
-        <button onClick={() => router.push("/dashboard")} className="text-xs text-[#0EA5E9] hover:underline cursor-pointer">← Back to Dashboard</button>
+        <button onClick={() => router.push("/dashboard")} className="text-xs text-[#e11d48] hover:underline cursor-pointer">← Back to Dashboard</button>
       </div>
     );
   }
@@ -205,7 +205,7 @@ export default function ReviewPage() {
         <div className="flex shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <button
             onClick={() => setLeftTab("transcript")}
-            className={`flex-1 px-3 py-2.5 text-xs font-medium transition cursor-pointer ${leftTab === "transcript" ? "text-gray-900 bg-white border-b-2 border-[#0EA5E9]" : "text-gray-400 hover:text-gray-600 bg-gray-50"}`}
+            className={`flex-1 px-3 py-2.5 text-xs font-medium transition cursor-pointer ${leftTab === "transcript" ? "text-gray-900 bg-white border-b-2 border-[#e11d48]" : "text-gray-400 hover:text-gray-600 bg-gray-50"}`}
           >
             Transcript
           </button>
@@ -256,7 +256,7 @@ export default function ReviewPage() {
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">ICD Codes</p>
                     <div className="flex flex-wrap gap-1">
                       {(data.previous_consultation.icd_codes || []).map((ic, i) => (
-                        <span key={i} className="text-[10px] font-mono bg-[#E0F2FE] text-[#0369a1] px-1.5 py-0.5 rounded">{ic.code}</span>
+                        <span key={i} className="text-[10px] font-mono bg-[#ffe4e6] text-[#9f1239] px-1.5 py-0.5 rounded">{ic.code}</span>
                       ))}
                     </div>
                   </div>
@@ -362,7 +362,7 @@ export default function ReviewPage() {
           <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
             <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px dashed #d4d4d2" }}>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+                <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
                 <h3 className="font-hand text-sm font-bold text-gray-900">ICD-10 Codes</h3>
               </div>
               <span className="text-[10px] text-gray-400">{icdCodes.length} codes</span>
@@ -386,14 +386,14 @@ export default function ReviewPage() {
                 value={newIcd.code}
                 onChange={e => setNewIcd(n => ({ ...n, code: e.target.value }))}
                 placeholder="I21.9"
-                className="w-20 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] font-mono"
+                className="w-20 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] font-mono"
                 style={{ border: "1.5px solid #d4d4d2" }}
               />
               <input
                 value={newIcd.description}
                 onChange={e => setNewIcd(n => ({ ...n, description: e.target.value }))}
                 placeholder="Description"
-                className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48]"
                 style={{ border: "1.5px solid #d4d4d2" }}
               />
               <button
@@ -402,7 +402,7 @@ export default function ReviewPage() {
                   setIcdCodes(arr => [...arr, newIcd]);
                   setNewIcd({ code: "", description: "" });
                 }}
-                className="px-2.5 py-1.5 text-xs bg-[#E0F2FE] text-[#0369a1] rounded-lg hover:bg-[#bae6fd] cursor-pointer font-medium"
+                className="px-2.5 py-1.5 text-xs bg-[#ffe4e6] text-[#9f1239] rounded-lg hover:bg-[#fecdd3] cursor-pointer font-medium"
               >
                 Add
               </button>

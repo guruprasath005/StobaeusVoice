@@ -95,7 +95,7 @@ export default function VoiceBotPage() {
         <div className="flex items-center justify-between px-5 h-[72px] bg-white sticky top-0 z-10 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-3">
             <h1 className="font-hand text-2xl font-bold text-gray-900">Patient Voice Bot</h1>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E0F2FE] text-[#0369a1]">Post-Discharge Monitoring</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#ffe4e6] text-[#9f1239]">Post-Discharge Monitoring</span>
           </div>
           <button onClick={load} className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition flex items-center gap-1.5">
             <Icon d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" size={12} />
@@ -106,7 +106,7 @@ export default function VoiceBotPage() {
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-3 px-5 pt-4 pb-2 shrink-0">
           {[
-            { label: "Total Calls", value: calls.length, color: "#0EA5E9" },
+            { label: "Total Calls", value: calls.length, color: "#e11d48" },
             { label: "Pending", value: pending, color: "#F59E0B" },
             { label: "Completed", value: completed, color: "#10B981" },
             { label: "Eligible Patients", value: eligible.length, color: "#8B5CF6" },
@@ -125,7 +125,7 @@ export default function VoiceBotPage() {
               key={t}
               onClick={() => setActiveTab(t)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
-              style={activeTab === t ? { background: "#E0F2FE", color: "#0369a1" } : { color: "#6B7280" }}
+              style={activeTab === t ? { background: "#ffe4e6", color: "#9f1239" } : { color: "#6B7280" }}
             >
               {t === "calls" ? `Call Log (${calls.length})` : `Eligible Patients (${eligible.length})`}
             </button>
@@ -144,7 +144,7 @@ export default function VoiceBotPage() {
               <div className="flex flex-col gap-2">
                 {eligible.map(p => (
                   <div key={p.patient_id} className="bg-white rounded-xl p-4 flex items-center gap-4" style={{ border: "1.5px solid #1a1a1a" }}>
-                    <div className="w-8 h-8 rounded-full bg-[#E0F2FE] text-[#0369a1] flex items-center justify-center font-bold text-xs shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#ffe4e6] text-[#9f1239] flex items-center justify-center font-bold text-xs shrink-0">
                       {p.patient_name?.[0] || "P"}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -155,7 +155,7 @@ export default function VoiceBotPage() {
                       <button
                         onClick={() => triggerCall(p.patient_id, "post_discharge")}
                         disabled={triggering === p.patient_id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0EA5E9] text-white hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#e11d48] text-white hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
                       >
                         <Icon d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" size={11} />
                         {triggering === p.patient_id ? "Scheduling…" : "Schedule Call"}
@@ -177,7 +177,7 @@ export default function VoiceBotPage() {
                   <button
                     key={c.call_id}
                     onClick={() => setSelected(c)}
-                    className={`w-full text-left px-4 py-3 flex items-center gap-4 hover:bg-gray-50 transition cursor-pointer ${i < calls.length - 1 ? "border-b border-gray-50" : ""} ${selected?.call_id === c.call_id ? "bg-[#F0F9FF]" : ""}`}
+                    className={`w-full text-left px-4 py-3 flex items-center gap-4 hover:bg-gray-50 transition cursor-pointer ${i < calls.length - 1 ? "border-b border-gray-50" : ""} ${selected?.call_id === c.call_id ? "bg-[#fff1f2]" : ""}`}
                   >
                     <div className="shrink-0">
                       <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: badge.bg, color: badge.text }}>{badge.label}</span>

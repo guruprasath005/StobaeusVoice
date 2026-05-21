@@ -89,7 +89,7 @@ function PatientSearchModal({ onSelect, onClose }: {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search by name, ABHA ID, or patient ID…"
-            className="w-full px-3 py-2 text-sm rounded-xl outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+            className="w-full px-3 py-2 text-sm rounded-xl outline-none focus:ring-2 focus:ring-[#e11d48]"
             style={{ border: "1.5px solid #d4d4d2" }}
           />
 
@@ -103,14 +103,14 @@ function PatientSearchModal({ onSelect, onClose }: {
                 <button
                   key={p.patient_id}
                   onClick={() => onSelect(p.patient_id)}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#E0F2FE] text-left transition cursor-pointer"
+                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#ffe4e6] text-left transition cursor-pointer"
                   style={{ border: "1px solid #e5e7eb" }}
                 >
                   <div>
                     <p className="text-sm font-semibold text-gray-800">{p.display}</p>
                     <p className="text-[10px] font-mono text-gray-400">{p.patient_id}{p.age ? ` · ${p.age}Y` : ""}{p.gender ? ` ${p.gender}` : ""}</p>
                   </div>
-                  <span className="text-[11px] text-[#0EA5E9] font-medium">Select →</span>
+                  <span className="text-[11px] text-[#e11d48] font-medium">Select →</span>
                 </button>
               ))}
             </div>
@@ -182,8 +182,8 @@ export default function PrescriptionsPage() {
             <button
               onClick={() => setShowModal(true)}
               disabled={creating}
-              className="flex items-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-[#0284C7] transition cursor-pointer disabled:opacity-50"
-              style={{ boxShadow: "2px 2px 0 #0369A1" }}
+              className="flex items-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+              style={{ boxShadow: "2px 2px 0 #9f1239" }}
             >
               {creating ? (
                 <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating…</>
@@ -202,8 +202,8 @@ export default function PrescriptionsPage() {
                 <div className="flex items-center justify-center py-12 text-sm text-gray-400">Loading…</div>
               ) : prescriptions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-[#E0F2FE] flex items-center justify-center">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="w-12 h-12 rounded-xl bg-[#ffe4e6] flex items-center justify-center">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </div>
@@ -231,7 +231,7 @@ export default function PrescriptionsPage() {
                           <div className="flex items-center gap-2">
                             <div
                               className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold"
-                              style={{ background: "#f3f3f1", color: "#0c4a6e", border: "1.25px solid #1a1a1a" }}
+                              style={{ background: "#f3f3f1", color: "#881337", border: "1.25px solid #1a1a1a" }}
                             >
                               {(rx.patient_display || "A").split(" ").filter((w: string) => /^[A-Za-z]/.test(w)).slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() || "A"}
                             </div>
@@ -262,7 +262,7 @@ export default function PrescriptionsPage() {
                           <StatusBadge status={rx.status} waSent={rx.whatsapp_sent_at} />
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-[10px] text-[#0EA5E9] font-medium">Open →</span>
+                          <span className="text-[10px] text-[#e11d48] font-medium">Open →</span>
                         </td>
                       </tr>
                     ))}

@@ -91,9 +91,9 @@ function PrintLayout({ ds, sections }: { ds: DSData; sections: Sections }) {
 
       {/* ICD codes */}
       {ds.icd_codes.length > 0 && (
-        <div style={{ marginBottom: 12, padding: "6px 10px", background: "#f0f9ff", borderRadius: 4 }}>
+        <div style={{ marginBottom: 12, padding: "6px 10px", background: "#fff1f2", borderRadius: 4 }}>
           <p style={{ margin: 0, fontWeight: 700 }}>Diagnoses (ICD-10)</p>
-          <p style={{ margin: "3px 0 0", color: "#0369a1" }}>
+          <p style={{ margin: "3px 0 0", color: "#9f1239" }}>
             {ds.icd_codes.map(c => `${c.code} — ${c.description}`).join("  ·  ")}
           </p>
         </div>
@@ -223,7 +223,7 @@ export default function DischargeSummaryPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <p className="text-sm text-red-600">{error || "Summary not found"}</p>
-        <button onClick={() => router.back()} className="text-xs text-[#0EA5E9] hover:underline cursor-pointer">← Go back</button>
+        <button onClick={() => router.back()} className="text-xs text-[#e11d48] hover:underline cursor-pointer">← Go back</button>
       </div>
     );
   }
@@ -293,7 +293,7 @@ export default function DischargeSummaryPage() {
           {SECTION_META.map(({ key, label, rows }) => (
             <div key={key} className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
               <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-                <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+                <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
                 <h3 className="font-hand text-sm font-bold text-gray-900">{label}</h3>
               </div>
               <textarea
@@ -317,14 +317,14 @@ export default function DischargeSummaryPage() {
 
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
           {/* Admission info */}
-          <div className="rounded-xl p-3 bg-[#F0F9FF]" style={{ border: "1px solid #BAE6FD" }}>
-            <p className="text-[10px] font-bold text-[#0369A1] uppercase tracking-wide mb-1.5">Admission</p>
+          <div className="rounded-xl p-3 bg-[#fff1f2]" style={{ border: "1px solid #fecdd3" }}>
+            <p className="text-[10px] font-bold text-[#9f1239] uppercase tracking-wide mb-1.5">Admission</p>
             <p className="text-sm font-semibold text-gray-800">{ds.patient_display || "Anonymous"}</p>
             {ds.patient_id && <p className="text-[10px] font-mono text-gray-500 mt-0.5">{ds.patient_id}</p>}
             <div className="mt-2 flex flex-col gap-0.5">
               <p className="text-[11px] text-gray-600">In: {fmtDate(ds.admission_date)}</p>
               <p className="text-[11px] text-gray-600">Out: {fmtDate(ds.discharge_date)}</p>
-              {days && <p className="text-[11px] font-semibold text-[#0369A1]">Duration: {days}</p>}
+              {days && <p className="text-[11px] font-semibold text-[#9f1239]">Duration: {days}</p>}
             </div>
           </div>
 
@@ -332,13 +332,13 @@ export default function DischargeSummaryPage() {
           {ds.icd_codes.length > 0 && (
             <div className="rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a", background: "white" }}>
               <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-                <span className="w-2 h-2 rounded-sm bg-[#0EA5E9] shrink-0" />
+                <span className="w-2 h-2 rounded-sm bg-[#e11d48] shrink-0" />
                 <p className="text-xs font-bold text-gray-800">ICD-10 Diagnoses</p>
               </div>
               <div className="px-3 py-2 flex flex-col gap-1.5">
                 {ds.icd_codes.map((c, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <span className="text-[10px] font-mono font-bold text-[#0EA5E9] shrink-0 mt-0.5">{c.code}</span>
+                    <span className="text-[10px] font-mono font-bold text-[#e11d48] shrink-0 mt-0.5">{c.code}</span>
                     <span className="text-[10px] text-gray-600 leading-tight">{c.description}</span>
                   </div>
                 ))}

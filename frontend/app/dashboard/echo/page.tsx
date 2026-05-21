@@ -30,8 +30,8 @@ const TEMPLATES = [
         <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
       </svg>
     ),
-    color: "#0EA5E9",
-    bg: "#E0F2FE",
+    color: "#e11d48",
+    bg: "#ffe4e6",
   },
   {
     key: "cath",
@@ -211,7 +211,7 @@ export default function EchoPage() {
                             {r.impression || <span className="text-gray-300 italic">Not generated</span>}
                           </p>
                           {r.icd_codes && r.icd_codes.length > 0 && (
-                            <p className="text-[10px] font-mono text-[#0EA5E9] mt-0.5">
+                            <p className="text-[10px] font-mono text-[#e11d48] mt-0.5">
                               {r.icd_codes.slice(0, 2).map(c => c.code).join(" · ")}
                             </p>
                           )}
@@ -232,7 +232,7 @@ export default function EchoPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="text-[10px] text-[#0EA5E9] font-medium">Open →</span>
+                          <span className="text-[10px] text-[#e11d48] font-medium">Open →</span>
                         </td>
                       </tr>
                     ))}

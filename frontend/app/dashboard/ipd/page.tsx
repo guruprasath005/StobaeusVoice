@@ -90,11 +90,11 @@ function VoiceBtn({ onTranscript }: { onTranscript: (t: string) => void }) {
       className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-lg transition cursor-pointer disabled:opacity-50 ${
         rec
           ? "bg-red-50 text-red-500 border border-red-200"
-          : "text-gray-400 hover:text-[#0369a1] hover:bg-[#E0F2FE]"
+          : "text-gray-400 hover:text-[#9f1239] hover:bg-[#ffe4e6]"
       }`}
     >
       {working ? (
-        <div className="w-2.5 h-2.5 border-2 border-[#0EA5E9] border-t-transparent rounded-full animate-spin" />
+        <div className="w-2.5 h-2.5 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
       ) : rec ? (
         <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0 block" /> Stop</>
       ) : (
@@ -174,7 +174,7 @@ export default function IpdPage() {
     finally { setSaving(false); setTimeout(() => setSaveMsg(""), 2500); }
   };
 
-  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white";
+  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white";
   const inputSty = { border: "1.5px solid #d4d4d2" };
 
   return (
@@ -185,7 +185,7 @@ export default function IpdPage() {
         <div className="flex items-center justify-between px-5 h-[72px] bg-white sticky top-0 z-10 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-3">
             <h1 className="font-hand text-2xl font-bold text-gray-900">IPD Ward Round</h1>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#E0F2FE] text-[#0369a1]">Progress Notes</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#ffe4e6] text-[#9f1239]">Progress Notes</span>
           </div>
           <button onClick={load} className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition flex items-center gap-1.5">
             <Icon d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" size={12} />
@@ -217,9 +217,9 @@ export default function IpdPage() {
                       onClick={() => selectPatient(p)}
                       className="text-left p-3 rounded-xl transition cursor-pointer"
                       style={{
-                        border: `1.5px solid ${isSelected ? "#0EA5E9" : color}`,
-                        background: isSelected ? "#E0F2FE" : "#fff",
-                        boxShadow: isSelected ? "2px 2px 0 #0EA5E9" : undefined,
+                        border: `1.5px solid ${isSelected ? "#e11d48" : color}`,
+                        background: isSelected ? "#ffe4e6" : "#fff",
+                        boxShadow: isSelected ? "2px 2px 0 #e11d48" : undefined,
                       }}
                     >
                       <div className="flex items-center justify-between mb-1.5">
@@ -231,7 +231,7 @@ export default function IpdPage() {
                         {p.bp && <span className="text-[10px] font-mono text-gray-600">BP {p.bp}</span>}
                         {p.hr != null && <span className="text-[10px] font-mono text-gray-600">HR {p.hr}</span>}
                         {p.spo2 != null && <span className="text-[10px] font-mono" style={{ color: p.spo2 < 92 ? "#EF4444" : "#10B981" }}>SpO₂ {p.spo2}%</span>}
-                        {p.drips.length > 0 && <span className="text-[10px] text-[#0369a1]">{p.drips.length} drip{p.drips.length > 1 ? "s" : ""}</span>}
+                        {p.drips.length > 0 && <span className="text-[10px] text-[#9f1239]">{p.drips.length} drip{p.drips.length > 1 ? "s" : ""}</span>}
                       </div>
                       <p className="text-[9px] text-gray-400 mt-1">Vitals {relTime(p.recorded_at)}</p>
                     </button>
@@ -249,13 +249,13 @@ export default function IpdPage() {
                 {recentNotes.slice(0, 8).map((n, i) => (
                   <div key={n.note_id} className={`px-4 py-3 flex gap-4 ${i < recentNotes.length - 1 ? "border-b border-gray-50" : ""}`}>
                     <div className="w-12 shrink-0">
-                      <p className="text-[10px] font-mono font-bold text-[#0369a1]">{n.bed_id || "—"}</p>
+                      <p className="text-[10px] font-mono font-bold text-[#9f1239]">{n.bed_id || "—"}</p>
                       <p className="text-[9px] text-gray-400">{relTime(n.created_at)}</p>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-gray-800 truncate">{n.patient_name || n.patient_id || "Unknown"}</p>
                       {n.status_text && <p className="text-[11px] text-gray-500 truncate mt-0.5">{n.status_text}</p>}
-                      {n.plan && <p className="text-[10px] text-[#0369a1] truncate mt-0.5">Plan: {n.plan}</p>}
+                      {n.plan && <p className="text-[10px] text-[#9f1239] truncate mt-0.5">Plan: {n.plan}</p>}
                     </div>
                   </div>
                 ))}
@@ -301,7 +301,7 @@ export default function IpdPage() {
                   <div className="mt-2 pt-2" style={{ borderTop: "1px dashed #d4d4d2" }}>
                     <p className="text-[9px] text-gray-400 mb-1">Active Drips</p>
                     {selected.drips.map((d, i) => (
-                      <p key={i} className="text-[10px] font-medium text-[#0369a1]">{d.name} {d.rate} {d.unit}</p>
+                      <p key={i} className="text-[10px] font-medium text-[#9f1239]">{d.name} {d.rate} {d.unit}</p>
                     ))}
                   </div>
                 )}
@@ -356,8 +356,8 @@ export default function IpdPage() {
               <button
                 onClick={saveNote}
                 disabled={saving || (!statusText.trim() && !assessment.trim() && !plan.trim())}
-                className="w-full py-2.5 text-xs font-semibold bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
-                style={{ boxShadow: "2px 2px 0 #0369a1" }}
+                className="w-full py-2.5 text-xs font-semibold bg-[#e11d48] text-white rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+                style={{ boxShadow: "2px 2px 0 #9f1239" }}
               >
                 {saving ? "Saving…" : "Save Progress Note"}
               </button>

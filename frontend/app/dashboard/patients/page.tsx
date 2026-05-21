@@ -50,7 +50,7 @@ function formatDate(iso: string | null) {
 
 // ── Tag editor ─────────────────────────────────────────────────────
 
-function TagEditor({ label, tags, onChange, color = "#0EA5E9" }: {
+function TagEditor({ label, tags, onChange, color = "#e11d48" }: {
   label: string; tags: string[]; onChange: (t: string[]) => void; color?: string;
 }) {
   const [val, setVal] = useState("");
@@ -77,7 +77,7 @@ function TagEditor({ label, tags, onChange, color = "#0EA5E9" }: {
           onChange={e => setVal(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           placeholder="Add and press Enter"
-          className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] bg-white"
+          className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white"
           style={{ border: "1.5px solid #d4d4d2" }}
         />
         <button onClick={add} className="px-2 py-1 text-[10px] rounded-lg cursor-pointer font-medium hover:opacity-80" style={{ background: color + "18", color }}>Add</button>
@@ -110,13 +110,13 @@ function MedEditor({ meds, onChange }: { meds: Medication[]; onChange: (m: Medic
         </div>
       )}
       <div className="flex gap-1">
-        <input value={draft.drug} onChange={e => setDraft(d => ({ ...d, drug: e.target.value }))} placeholder="Drug" className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] bg-white" style={{ border: "1.5px solid #d4d4d2" }} />
-        <input value={draft.dose ?? ""} onChange={e => setDraft(d => ({ ...d, dose: e.target.value }))} placeholder="Dose" className="w-16 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] bg-white" style={{ border: "1.5px solid #d4d4d2" }} />
-        <select value={draft.freq ?? ""} onChange={e => setDraft(d => ({ ...d, freq: e.target.value }))} className="w-14 px-1 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] bg-white" style={{ border: "1.5px solid #d4d4d2" }}>
+        <input value={draft.drug} onChange={e => setDraft(d => ({ ...d, drug: e.target.value }))} placeholder="Drug" className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white" style={{ border: "1.5px solid #d4d4d2" }} />
+        <input value={draft.dose ?? ""} onChange={e => setDraft(d => ({ ...d, dose: e.target.value }))} placeholder="Dose" className="w-16 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white" style={{ border: "1.5px solid #d4d4d2" }} />
+        <select value={draft.freq ?? ""} onChange={e => setDraft(d => ({ ...d, freq: e.target.value }))} className="w-14 px-1 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white" style={{ border: "1.5px solid #d4d4d2" }}>
           <option value="">Freq</option>
           {FREQ.map(f => <option key={f} value={f}>{f}</option>)}
         </select>
-        <button onClick={add} className="px-2 py-1 text-[10px] rounded-lg cursor-pointer font-medium hover:opacity-80 bg-[#E0F2FE] text-[#0369a1]">Add</button>
+        <button onClick={add} className="px-2 py-1 text-[10px] rounded-lg cursor-pointer font-medium hover:opacity-80 bg-[#ffe4e6] text-[#9f1239]">Add</button>
       </div>
     </div>
   );
@@ -248,14 +248,14 @@ export default function PatientsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/dashboard/consultation/new")}
-              className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border border-[#0EA5E9] text-[#0EA5E9] hover:bg-[#E0F2FE] transition cursor-pointer"
+              className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border border-[#e11d48] text-[#e11d48] hover:bg-[#ffe4e6] transition cursor-pointer"
             >
               <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={11} /> Start Consultation
             </button>
             <button
               onClick={() => router.push("/dashboard/consultation/new")}
-              className="flex items-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#0284c7] transition cursor-pointer"
-              style={{ boxShadow: "2px 2px 0 #0369a1" }}
+              className="flex items-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#be123c] transition cursor-pointer"
+              style={{ boxShadow: "2px 2px 0 #9f1239" }}
             >
               <Icon d="M12 5v14M5 12h14" size={12} /> Register Patient
             </button>
@@ -272,7 +272,7 @@ export default function PatientsPage() {
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search by name, ABHA ID, MRN or PT-ID…"
-              className="w-full pl-9 pr-3 py-2 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white"
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white"
               style={{ border: "1.5px solid #d4d4d2" }}
             />
           </div>
@@ -285,7 +285,7 @@ export default function PatientsPage() {
           ) : patients.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <p className="text-sm text-gray-500">{query ? "No patients match your search" : "No patients registered yet"}</p>
-              {!query && <button onClick={() => router.push("/dashboard/consultation/new")} className="text-xs text-[#0EA5E9] hover:underline cursor-pointer">Start a consultation to register your first patient →</button>}
+              {!query && <button onClick={() => router.push("/dashboard/consultation/new")} className="text-xs text-[#e11d48] hover:underline cursor-pointer">Start a consultation to register your first patient →</button>}
             </div>
           ) : (
             <table className="w-full">
@@ -301,7 +301,7 @@ export default function PatientsPage() {
                   <tr
                     key={p.patient_id}
                     onClick={() => selectPatient(p)}
-                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${selected?.patient_id === p.patient_id ? "bg-[#F0FAFB]" : ""}`}
+                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${selected?.patient_id === p.patient_id ? "bg-[#fff1f2]" : ""}`}
                     style={{ borderBottom: "1px dashed #ececea" }}
                   >
                     <td className="px-4 py-2.5">
@@ -309,8 +309,8 @@ export default function PatientsPage() {
                         <div
                           className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold"
                           style={{
-                            background: selected?.patient_id === p.patient_id ? "#bae6fd" : "#f3f3f1",
-                            color: "#0c4a6e",
+                            background: selected?.patient_id === p.patient_id ? "#fecdd3" : "#f3f3f1",
+                            color: "#881337",
                             border: "1.25px solid #1a1a1a",
                           }}
                         >
@@ -319,16 +319,16 @@ export default function PatientsPage() {
                         <div>
                           <p className="text-xs font-semibold text-gray-800">{p.full_name}</p>
                           <p className="text-[10px] font-mono text-gray-400">
-                            {p.patient_id}{p.abha_id && <span className="text-[#0EA5E9] ml-1">● ABHA</span>}
+                            {p.patient_id}{p.abha_id && <span className="text-[#e11d48] ml-1">● ABHA</span>}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{p.age ? `${p.age}${p.gender_code || ""}` : "—"}</td>
+                    <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{p.age ? `${p.age} · ${p.gender_code || "—"}` : "—"}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex flex-wrap gap-1">
                         {p.conditions.slice(0, 3).map(c => (
-                          <span key={c} className="text-[9px] bg-[#E0F2FE] text-[#0369a1] px-1.5 py-0.5 rounded-full font-medium">{c}</span>
+                          <span key={c} className="text-[9px] bg-[#ffe4e6] text-[#9f1239] px-1.5 py-0.5 rounded-full font-medium">{c}</span>
                         ))}
                         {p.conditions.length > 3 && <span className="text-[9px] text-gray-400">+{p.conditions.length - 3}</span>}
                         {p.conditions.length === 0 && <span className="text-[10px] text-gray-300">—</span>}
@@ -341,7 +341,7 @@ export default function PatientsPage() {
                     <td className="px-4 py-2.5">
                       <button
                         onClick={e => { e.stopPropagation(); router.push(`/dashboard/consultation/new?patient=${p.patient_id}`); }}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-[#0EA5E9] hover:bg-[#E0F2FE] px-2 py-1 rounded-md transition cursor-pointer whitespace-nowrap"
+                        className="flex items-center gap-1 text-[10px] font-semibold text-[#e11d48] hover:bg-[#ffe4e6] px-2 py-1 rounded-md transition cursor-pointer whitespace-nowrap"
                       >
                         <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={10} /> Consult
                       </button>
@@ -404,7 +404,7 @@ export default function PatientsPage() {
                 <button
                   key={tab}
                   onClick={() => setDetailTab(tab)}
-                  className={`flex-1 py-2 text-xs font-medium capitalize transition cursor-pointer ${detailTab === tab ? "text-[#0EA5E9] border-b-2 border-[#0EA5E9] bg-white" : "text-gray-400 hover:text-gray-600 bg-gray-50"}`}
+                  className={`flex-1 py-2 text-xs font-medium capitalize transition cursor-pointer ${detailTab === tab ? "text-[#e11d48] border-b-2 border-[#e11d48] bg-white" : "text-gray-400 hover:text-gray-600 bg-gray-50"}`}
                 >
                   {tab}
                 </button>
@@ -421,14 +421,14 @@ export default function PatientsPage() {
                     <TagEditor label="Allergies" tags={editAllergies} onChange={setEditAllergies} color="#EF4444" />
                     <div>
                       <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Blood Group</p>
-                      <select value={editBloodGroup} onChange={e => setEditBloodGroup(e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#0EA5E9] bg-white" style={{ border: "1.5px solid #d4d4d2" }}>
+                      <select value={editBloodGroup} onChange={e => setEditBloodGroup(e.target.value)} className="w-full px-2 py-1.5 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white" style={{ border: "1.5px solid #d4d4d2" }}>
                         <option value="">Unknown</option>
                         {["A+","A−","B+","B−","O+","O−","AB+","AB−"].map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
                     {editMsg && <p className={`text-xs ${editMsg === "Saved." ? "text-green-600" : "text-red-600"}`}>{editMsg}</p>}
                     <div className="flex gap-2">
-                      <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 text-xs font-semibold bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50">
+                      <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 text-xs font-semibold bg-[#e11d48] text-white rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50">
                         {editSaving ? "Saving…" : "Save Changes"}
                       </button>
                       <button onClick={() => setEditing(false)} className="px-3 py-2 text-xs text-gray-600 hover:text-gray-800 cursor-pointer rounded-lg hover:bg-gray-100 transition">Cancel</button>
@@ -440,7 +440,7 @@ export default function PatientsPage() {
                       <div>
                         <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-2 font-medium">Known Conditions</p>
                         <div className="flex flex-wrap gap-1">
-                          {selected.conditions.map(c => <span key={c} className="text-[10px] bg-[#E0F2FE] text-[#0369a1] px-2 py-0.5 rounded-full font-medium">{c}</span>)}
+                          {selected.conditions.map(c => <span key={c} className="text-[10px] bg-[#ffe4e6] text-[#9f1239] px-2 py-0.5 rounded-full font-medium">{c}</span>)}
                         </div>
                       </div>
                     )}
@@ -514,14 +514,14 @@ export default function PatientsPage() {
                       {c.icd_codes.length > 0 && (
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {c.icd_codes.map(ic => (
-                            <span key={ic.code} className="text-[9px] font-mono bg-[#E0F2FE] text-[#0369a1] px-1 py-0.5 rounded">{ic.code}</span>
+                            <span key={ic.code} className="text-[9px] font-mono bg-[#ffe4e6] text-[#9f1239] px-1 py-0.5 rounded">{ic.code}</span>
                           ))}
                         </div>
                       )}
                       <div className="flex gap-2 mt-2">
                         <button
                           onClick={() => router.push(`/dashboard/consultation/${c.session_id}/review`)}
-                          className="text-[10px] text-[#0EA5E9] hover:underline cursor-pointer font-medium"
+                          className="text-[10px] text-[#e11d48] hover:underline cursor-pointer font-medium"
                         >
                           View SOAP →
                         </button>
@@ -544,8 +544,8 @@ export default function PatientsPage() {
             <div className="p-3 shrink-0 flex gap-2" style={{ borderTop: "1px dashed #d4d4d2" }}>
               <button
                 onClick={() => router.push(`/dashboard/consultation/new?patient=${selected.patient_id}`)}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-[#0EA5E9] text-white text-xs font-semibold py-2 rounded-lg hover:bg-[#0284c7] transition cursor-pointer"
-                style={{ boxShadow: "2px 2px 0 #0369a1" }}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[#e11d48] text-white text-xs font-semibold py-2 rounded-lg hover:bg-[#be123c] transition cursor-pointer"
+                style={{ boxShadow: "2px 2px 0 #9f1239" }}
               >
                 <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={11} /> Consult
               </button>

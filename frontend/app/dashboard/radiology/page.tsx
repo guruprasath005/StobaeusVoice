@@ -29,8 +29,8 @@ const TEMPLATES = [
     label: "Chest X-Ray",
     short: "CXR",
     desc: "PA/AP — cardiac silhouette, pulmonary vascularity, pleural effusion, mediastinal widening",
-    color: "#0EA5E9",
-    bg: "#E0F2FE",
+    color: "#e11d48",
+    bg: "#ffe4e6",
     icon: "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z",
   },
   {
@@ -47,7 +47,7 @@ const TEMPLATES = [
     label: "CT Pulmonary Angiography",
     short: "CTPA",
     desc: "CTPA — pulmonary embolism, filling defects, saddle PE, RV strain assessment",
-    color: "#0369a1",
+    color: "#9f1239",
     bg: "#DBEAFE",
     icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
   },
@@ -103,7 +103,7 @@ function PatientInitials({ name }: { name: string | null }) {
   return (
     <div
       className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold"
-      style={{ background: "#f3f3f1", color: "#0c4a6e", border: "1.25px solid #1a1a1a" }}
+      style={{ background: "#f3f3f1", color: "#881337", border: "1.25px solid #1a1a1a" }}
     >
       {letters}
     </div>
@@ -153,7 +153,7 @@ export default function RadiologyPage() {
             <h1 className="font-hand text-2xl font-bold text-gray-900">Radiology</h1>
             <span
               className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "#E0F2FE", color: "#0369a1" }}
+              style={{ background: "#ffe4e6", color: "#9f1239" }}
             >
               Cardiac Imaging
             </span>
@@ -208,7 +208,7 @@ export default function RadiologyPage() {
                 {/* Text */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-xs font-bold text-gray-900 group-hover:text-[#0EA5E9] transition">
+                    <p className="text-xs font-bold text-gray-900 group-hover:text-[#e11d48] transition">
                       {t.label}
                     </p>
                     <span
@@ -244,7 +244,7 @@ export default function RadiologyPage() {
                   onClick={() => setFilterTemplate(f.id)}
                   className="px-3 py-1.5 text-[10px] font-medium transition cursor-pointer"
                   style={{
-                    background: filterTemplate === f.id ? "#0EA5E9" : "#fff",
+                    background: filterTemplate === f.id ? "#e11d48" : "#fff",
                     color: filterTemplate === f.id ? "#fff" : "#9CA3AF",
                     borderRight: i < arr.length - 1 ? "1px solid #d4d4d2" : "none",
                   }}
@@ -269,7 +269,7 @@ export default function RadiologyPage() {
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: "#E0F2FE" }}
+                style={{ background: "#ffe4e6" }}
               >
                 <Icon d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" size={22} />
               </div>
@@ -303,7 +303,7 @@ export default function RadiologyPage() {
                   <button
                     key={r.report_id}
                     onClick={() => router.push(`/dashboard/radiology/${r.report_id}`)}
-                    className="w-full text-left hover:bg-[#F0F9FF] transition cursor-pointer"
+                    className="w-full text-left hover:bg-[#fff1f2] transition cursor-pointer"
                     style={{ borderBottom: i < filtered.length - 1 ? "1px dashed #ececea" : "none" }}
                   >
                     <div
@@ -361,7 +361,7 @@ export default function RadiologyPage() {
 
                       {/* Action */}
                       <div className="text-right">
-                        <span className="text-[10px] font-semibold text-[#0EA5E9]">Open →</span>
+                        <span className="text-[10px] font-semibold text-[#e11d48]">Open →</span>
                       </div>
                     </div>
                   </button>

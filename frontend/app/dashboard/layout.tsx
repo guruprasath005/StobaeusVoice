@@ -105,11 +105,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Branding */}
         <div className="px-3 pt-4 pb-3" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#0EA5E9] text-white flex items-center justify-center font-bold text-sm shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[#e11d48] text-white flex items-center justify-center font-bold text-sm shrink-0">
               S
             </div>
             <span className="font-hand font-bold text-base leading-tight">
-              Stobaeus<span className="text-[#0EA5E9]">Voice</span>
+              Stobaeus<span className="text-[#e11d48]">Voice</span>
             </span>
           </div>
           <p className="text-[10px] text-gray-400 mt-0.5 ml-9 tracking-wide uppercase">Cardiology</p>
@@ -127,7 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 href={item.href}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                   active
-                    ? "bg-[#E0F2FE] text-[#0EA5E9]"
+                    ? "bg-[#ffe4e6] text-[#e11d48]"
                     : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
                 }`}
               >
@@ -142,15 +142,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-3 pb-2">
           <div
             className="rounded-xl p-3 text-center"
-            style={{ background: "#E0F2FE", border: "1.5px dashed #0EA5E9" }}
+            style={{ background: "#ffe4e6", border: "1.5px dashed #e11d48" }}
           >
-            <p className="font-hand font-bold text-[#0c4a6e] text-sm mb-1">Upgrade to Pro</p>
-            <p className="text-[10px] text-[#0c4a6e] leading-tight mb-2">
+            <p className="font-hand font-bold text-[#881337] text-sm mb-1">Upgrade to Pro</p>
+            <p className="text-[10px] text-[#881337] leading-tight mb-2">
               Multi-doctor + ABDM full + ICD at point of care
             </p>
             <button
               className="text-[10px] font-semibold px-3 py-1.5 rounded-lg text-white"
-              style={{ background: "#0EA5E9" }}
+              style={{ background: "#e11d48" }}
             >
               Upgrade →
             </button>
@@ -160,7 +160,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* User */}
         <div className="px-3 py-3" style={{ borderTop: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-[#0EA5E9] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+            <div className="w-7 h-7 rounded-full bg-[#e11d48] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">

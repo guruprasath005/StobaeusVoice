@@ -96,17 +96,17 @@ function WeekChart({ days }: { days: number[] }) {
           />
         ))}
         {/* Area fill */}
-        <path d={areaPath} fill="#E0F2FE" opacity="0.55" />
+        <path d={areaPath} fill="#ffe4e6" opacity="0.55" />
         {/* Line */}
-        <path d={linePath} fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {/* Dots */}
         {pts.map((p, i) => (
           <circle
             key={i}
             cx={p.x} cy={p.y}
             r={i === todayIdx ? 4 : 3}
-            fill={i === todayIdx ? "#0EA5E9" : "#fff"}
-            stroke="#0EA5E9"
+            fill={i === todayIdx ? "#e11d48" : "#fff"}
+            stroke="#e11d48"
             strokeWidth="2"
           />
         ))}
@@ -117,7 +117,7 @@ function WeekChart({ days }: { days: number[] }) {
           textAnchor="middle"
           fontSize="10"
           fontWeight="600"
-          fill="#0EA5E9"
+          fill="#e11d48"
         >
           {days[todayIdx]}
         </text>
@@ -127,10 +127,10 @@ function WeekChart({ days }: { days: number[] }) {
       <div className="flex mt-1" style={{ paddingLeft: PAD_X, paddingRight: PAD_X }}>
         {DAY_LABELS.map((label, i) => (
           <div key={label} className="flex-1 text-center">
-            <div className={`text-[10px] font-medium ${i === todayIdx ? "text-[#0EA5E9]" : "text-gray-400"}`}>
+            <div className={`text-[10px] font-medium ${i === todayIdx ? "text-[#e11d48]" : "text-gray-400"}`}>
               {label}
             </div>
-            <div className={`text-[10px] font-mono ${i === todayIdx ? "text-[#0EA5E9]" : "text-gray-500"}`}>
+            <div className={`text-[10px] font-mono ${i === todayIdx ? "text-[#e11d48]" : "text-gray-500"}`}>
               {days[i]}
             </div>
           </div>
@@ -145,7 +145,7 @@ function WeekChart({ days }: { days: number[] }) {
 const STATUS_MAP: Record<string, { dot: string; text: string; label: string }> = {
   approved:  { dot: "#10B981", text: "#15803D", label: "Approved" },
   reviewing: { dot: "#F59E0B", text: "#A16207", label: "Reviewing" },
-  recording: { dot: "#0EA5E9", text: "#0369a1", label: "Recording" },
+  recording: { dot: "#e11d48", text: "#9f1239", label: "Recording" },
 };
 
 function StatusDot({ status }: { status: string }) {
@@ -201,7 +201,7 @@ export default function DashboardPage() {
       label: "Consultations Today",
       value: loading ? "—" : String(todayCount),
       sub: loading ? "" : weekTotal > 0 ? `${weekTotal} this week` : "No consultations yet",
-      color: "#0EA5E9",
+      color: "#e11d48",
     },
     {
       label: "Notes Generated",
@@ -235,8 +235,8 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={() => router.push("/dashboard/consultation/new")}
-            className="flex items-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#0284c7] transition cursor-pointer shrink-0"
-            style={{ boxShadow: "2px 2px 0 #0369a1" }}
+            className="flex items-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#be123c] transition cursor-pointer shrink-0"
+            style={{ boxShadow: "2px 2px 0 #9f1239" }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
             Start Consultation
@@ -273,7 +273,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-                <span className="inline-block w-4 h-0.5 rounded bg-[#0EA5E9]" />
+                <span className="inline-block w-4 h-0.5 rounded bg-[#e11d48]" />
                 This week
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function DashboardPage() {
               <h2 className="font-hand text-base font-bold text-gray-900">Recent Consultations</h2>
               <button
                 onClick={() => router.push("/dashboard/patients")}
-                className="text-[10px] text-[#0EA5E9] cursor-pointer hover:underline"
+                className="text-[10px] text-[#e11d48] cursor-pointer hover:underline"
               >
                 View patients →
               </button>
@@ -301,7 +301,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-400">No consultations yet</p>
                 <button
                   onClick={() => router.push("/dashboard/consultation/new")}
-                  className="text-xs text-[#0EA5E9] hover:underline cursor-pointer"
+                  className="text-xs text-[#e11d48] hover:underline cursor-pointer"
                 >
                   Start your first consultation →
                 </button>
@@ -331,7 +331,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <div
                             className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold"
-                            style={{ background: "#E0F2FE", color: "#0369a1", border: "1.25px solid #1a1a1a" }}
+                            style={{ background: "#ffe4e6", color: "#9f1239", border: "1.25px solid #1a1a1a" }}
                           >
                             {(c.patient_display || c.patient_id).replace(/^PT-/, "").split(" ").filter((w: string) => /^[A-Za-z]/.test(w)).slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() || (c.patient_display || c.patient_id).slice(0, 2).toUpperCase()}
                           </div>
@@ -344,7 +344,7 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-4 py-2.5">
                         {c.icd
-                          ? <span className="text-[10px] font-mono font-semibold text-[#0EA5E9]">{c.icd}</span>
+                          ? <span className="text-[10px] font-mono font-semibold text-[#e11d48]">{c.icd}</span>
                           : <span className="text-[10px] text-gray-300">—</span>}
                       </td>
                       <td className="px-4 py-2.5">
@@ -371,7 +371,7 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-400">Queue not set up yet</p>
             <button
               onClick={() => router.push("/dashboard/consultation/new")}
-              className="text-[10px] text-[#0EA5E9] hover:underline cursor-pointer"
+              className="text-[10px] text-[#e11d48] hover:underline cursor-pointer"
             >
               Start a consultation →
             </button>

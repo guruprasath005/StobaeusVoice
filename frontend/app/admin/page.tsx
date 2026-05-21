@@ -29,7 +29,7 @@ interface AdminStats {
 }
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  cardiologist:    { bg: "#E0F2FE", text: "#0369A1" },
+  cardiologist:    { bg: "#ffe4e6", text: "#9f1239" },
   cardiac_surgeon: { bg: "#EDE9FE", text: "#6D28D9" },
   cardiac_nurse:   { bg: "#FCE7F3", text: "#9D174D" },
   admin:           { bg: "#FEF3C7", text: "#92400E" },
@@ -62,10 +62,10 @@ export default function AdminOverviewPage() {
   const active = users.filter(u => u.is_active);
 
   const STATS_TOP = [
-    { label: "Total Users", value: loading ? "—" : String(users.length), sub: `${active.length} active`, color: "#0EA5E9" },
-    { label: "Consultations", value: loading || !stats ? "—" : String(stats.total_consultations), sub: stats ? `${stats.month}` : "", color: "#8B5CF6" },
-    { label: "Approved Notes", value: loading || !stats ? "—" : String(stats.approved_consultations), sub: "This month", color: "#10B981" },
-    { label: "Cost Savings", value: loading || !stats ? "—" : `₹${(stats.cost_saved_inr / 1000).toFixed(0)}k`, sub: "Est. transcription saved", color: "#F59E0B" },
+    { label: "Total Users", value: loading ? "—" : String(users.length), sub: `${active.length} active` },
+    { label: "Consultations", value: loading || !stats ? "—" : String(stats.total_consultations), sub: stats ? `${stats.month}` : "" },
+    { label: "Approved Notes", value: loading || !stats ? "—" : String(stats.approved_consultations), sub: "This month" },
+    { label: "Cost Savings", value: loading || !stats ? "—" : `₹${(stats.cost_saved_inr / 1000).toFixed(0)}k`, sub: "Est. transcription saved" },
   ];
 
   const ABDM_MILESTONES = stats ? [
@@ -85,8 +85,8 @@ export default function AdminOverviewPage() {
         </div>
         <Link
           href="/admin/users"
-          className="flex items-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#0284c7] transition"
-          style={{ boxShadow: "2px 2px 0 #0369a1" }}
+          className="flex items-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-[#be123c] transition"
+          style={{ boxShadow: "2px 2px 0 #9f1239" }}
         >
           <Icon d="M12 5v14M5 12h14" size={13} />
           Add User
@@ -98,7 +98,7 @@ export default function AdminOverviewPage() {
         {STATS_TOP.map(s => (
           <div key={s.label} className="bg-white rounded-xl p-4" style={{ border: "1.5px solid #1a1a1a" }}>
             <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-wide">{s.label}</p>
-            <p className="font-hand text-3xl font-bold leading-none" style={{ color: s.color }}>{s.value}</p>
+            <p className="font-hand text-3xl font-bold leading-none" style={{ color: "#1a1a1a" }}>{s.value}</p>
             <p className="text-[10px] text-gray-400 font-medium mt-1">{s.sub}</p>
           </div>
         ))}
@@ -118,7 +118,7 @@ export default function AdminOverviewPage() {
               { label: "Discharge Summaries", value: stats?.total_discharge_summaries ?? "—", icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" },
             ].map(m => (
               <div key={m.label} className="p-5 flex flex-col items-center text-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-[#E0F2FE] flex items-center justify-center text-[#0369a1]">
+                <div className="w-9 h-9 rounded-xl bg-[#ffe4e6] flex items-center justify-center text-[#9f1239]">
                   <Icon d={m.icon} size={16} />
                 </div>
                 <p className="font-hand text-2xl font-bold text-gray-900">{loading ? "—" : String(m.value)}</p>
@@ -185,7 +185,7 @@ export default function AdminOverviewPage() {
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
-                          <div className="h-1.5 rounded-full bg-[#0EA5E9]" style={{ width: `${(doc.consultations_this_month / max) * 100}%` }} />
+                          <div className="h-1.5 rounded-full bg-[#e11d48]" style={{ width: `${(doc.consultations_this_month / max) * 100}%` }} />
                         </div>
                         <span className="text-xs font-mono font-bold text-gray-800 w-8 text-right">{doc.consultations_this_month}</span>
                       </div>
@@ -202,7 +202,7 @@ export default function AdminOverviewPage() {
       <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
         <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <h2 className="font-hand text-base font-bold text-gray-900">All Users</h2>
-          <Link href="/admin/users" className="text-[10px] text-[#0EA5E9] hover:underline">Manage →</Link>
+          <Link href="/admin/users" className="text-[10px] text-[#e11d48] hover:underline">Manage →</Link>
         </div>
         {loading ? (
           <div className="px-5 py-8 text-center text-xs text-gray-400">Loading…</div>

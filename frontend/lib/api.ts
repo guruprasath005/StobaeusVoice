@@ -72,6 +72,10 @@ export const api = {
   getPatientConsultations: (patientId: string) =>
     apiFetch(`${BASE}/patients/${patientId}/consultations`).then(r => r.json()),
 
+  // Clinical context only — PII-safe payload for the consultation panel.
+  getClinicalContext: (patientId: string) =>
+    apiFetch(`${BASE}/patients/${patientId}/clinical`).then(r => (r.ok ? r.json() : null)),
+
   registerPatient: (data: Record<string, unknown>) =>
     apiFetch(`${BASE}/patients/register`, {
       method: "POST",

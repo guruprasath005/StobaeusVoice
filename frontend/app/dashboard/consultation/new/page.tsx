@@ -45,9 +45,9 @@ function TagInput({ label, tags, onChange, placeholder }: {
       <label className="block text-[10px] font-medium text-gray-600 uppercase tracking-wide mb-1">{label}</label>
       <div className="flex flex-wrap gap-1 mb-1.5">
         {tags.map(t => (
-          <span key={t} className="flex items-center gap-1 text-[10px] bg-[#E0F2FE] text-[#0369a1] px-2 py-0.5 rounded-full font-medium">
+          <span key={t} className="flex items-center gap-1 text-[10px] bg-[#ffe4e6] text-[#9f1239] px-2 py-0.5 rounded-full font-medium">
             {t}
-            <button onClick={() => onChange(tags.filter(x => x !== t))} className="text-[#0369a1] hover:text-red-500 leading-none cursor-pointer">×</button>
+            <button onClick={() => onChange(tags.filter(x => x !== t))} className="text-[#9f1239] hover:text-red-500 leading-none cursor-pointer">×</button>
           </span>
         ))}
       </div>
@@ -57,10 +57,10 @@ function TagInput({ label, tags, onChange, placeholder }: {
           onChange={e => setVal(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           placeholder={placeholder}
-          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48]"
           style={{ border: "1.5px solid #d4d4d2" }}
         />
-        <button type="button" onClick={add} className="px-2.5 py-1.5 text-xs bg-[#E0F2FE] text-[#0369a1] rounded-lg hover:bg-[#bae6fd] cursor-pointer font-medium">Add</button>
+        <button type="button" onClick={add} className="px-2.5 py-1.5 text-xs bg-[#ffe4e6] text-[#9f1239] rounded-lg hover:bg-[#fecdd3] cursor-pointer font-medium">Add</button>
       </div>
     </div>
   );
@@ -96,26 +96,26 @@ function MedInput({ meds, onChange }: {
           value={draft.drug}
           onChange={e => setDraft(d => ({ ...d, drug: e.target.value }))}
           placeholder="Drug name"
-          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48]"
           style={{ border: "1.5px solid #d4d4d2" }}
         />
         <input
           value={draft.dose}
           onChange={e => setDraft(d => ({ ...d, dose: e.target.value }))}
           placeholder="Dose"
-          className="w-20 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+          className="w-20 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48]"
           style={{ border: "1.5px solid #d4d4d2" }}
         />
         <select
           value={draft.freq}
           onChange={e => setDraft(d => ({ ...d, freq: e.target.value }))}
-          className="w-16 px-1.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white"
+          className="w-16 px-1.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white"
           style={{ border: "1.5px solid #d4d4d2" }}
         >
           <option value="">Freq</option>
           {FREQ.map(f => <option key={f} value={f}>{f}</option>)}
         </select>
-        <button type="button" onClick={add} className="px-2.5 py-1.5 text-xs bg-[#E0F2FE] text-[#0369a1] rounded-lg hover:bg-[#bae6fd] cursor-pointer font-medium">Add</button>
+        <button type="button" onClick={add} className="px-2.5 py-1.5 text-xs bg-[#ffe4e6] text-[#9f1239] rounded-lg hover:bg-[#fecdd3] cursor-pointer font-medium">Add</button>
       </div>
     </div>
   );
@@ -152,7 +152,7 @@ function NewPatientForm({ onSaved, onCancel }: {
     finally { setSaving(false); }
   };
 
-  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white";
+  const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white";
   const inputSty = { border: "1.5px solid #d4d4d2" };
   const labelCls = "block text-[10px] font-medium text-gray-600 uppercase tracking-wide mb-1";
 
@@ -209,7 +209,7 @@ function NewPatientForm({ onSaved, onCancel }: {
         {/* Section: Clinical context */}
         <div className="-mx-5 px-5 py-3 bg-gray-50" style={{ borderTop: "1px dashed #d4d4d2", borderBottom: "1px dashed #d4d4d2" }}>
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0EA5E9] shrink-0" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#e11d48] shrink-0" />
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Clinical Context — safe to send to AI for SOAP note generation</p>
           </div>
         </div>
@@ -237,8 +237,8 @@ function NewPatientForm({ onSaved, onCancel }: {
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-2 bg-[#0EA5E9] text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-[#0284c7] transition cursor-pointer disabled:opacity-50"
-          style={{ boxShadow: "2px 2px 0 #0369a1" }}
+          className="flex items-center gap-2 bg-[#e11d48] text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+          style={{ boxShadow: "2px 2px 0 #9f1239" }}
         >
           {saving ? "Saving…" : "Register & Start Consultation →"}
         </button>
@@ -347,7 +347,7 @@ function StartConsultationContent() {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search by name, ABHA ID, MRN, or PT-ID…"
-                className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl outline-none focus:ring-2 focus:ring-[#e11d48]"
                 style={{ border: "1.5px solid #d4d4d2" }}
               />
               {searching && (
@@ -367,11 +367,11 @@ function StartConsultationContent() {
                     key={r.patient_id}
                     onClick={() => beginConsultation(r.patient_id)}
                     disabled={starting}
-                    className="w-full flex items-start gap-3 px-5 py-3 hover:bg-[#F0FAFB] transition text-left cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-start gap-3 px-5 py-3 hover:bg-[#fff1f2] transition text-left cursor-pointer disabled:opacity-50"
                     style={{ borderBottom: "1px dashed #ececea" }}
                   >
-                    <div className="w-8 h-8 rounded-lg bg-[#E0F2FE] flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-[#0369a1]">
+                    <div className="w-8 h-8 rounded-lg bg-[#ffe4e6] flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-[#9f1239]">
                         {r.display.split(" · ")[0].split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                       </span>
                     </div>
@@ -382,7 +382,7 @@ function StartConsultationContent() {
                         <p className="text-[10px] text-gray-500 mt-0.5">{r.conditions.slice(0, 3).join(", ")}</p>
                       )}
                     </div>
-                    <span className="text-xs text-[#0EA5E9] font-medium shrink-0 mt-1">Select →</span>
+                    <span className="text-xs text-[#e11d48] font-medium shrink-0 mt-1">Select →</span>
                   </button>
                 ))
               )}
@@ -422,7 +422,7 @@ function StartConsultationContent() {
           </div>
 
           {starting && (
-            <div className="px-5 pb-4 text-center text-xs text-[#0EA5E9]">Starting session…</div>
+            <div className="px-5 pb-4 text-center text-xs text-[#e11d48]">Starting session…</div>
           )}
         </div>
 
