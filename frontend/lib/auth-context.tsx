@@ -72,7 +72,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
-
-export function saveAuthSession(token: string, user: AuthUser) {
-  localStorage.setItem("sv_token", token);
-}

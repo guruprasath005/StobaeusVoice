@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from database import get_db, RadiologyReport, Patient
 from routers.auth import get_current_user, User
+from services.transcription import transcribe_audio
+from services.radiology_generation import generate_radiology_impression
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
@@ -124,7 +126,6 @@ async def dictate_field(
     if not r:
         raise HTTPException(404, "Report not found")
     audio_bytes = await audio.read()
-    from services.transcription import transcribe_audio
     transcript = await transcribe_audio(audio_bytes, filename=audio.filename or "audio.webm")
     return {"transcript": transcript}
 
@@ -138,34 +139,7 @@ async def generate_impression(report_id: str,
     findings = r.findings or {}
     if not findings:
         raise HTTPException(400, "No findings to generate impression from")
-    from openai import OpenAI
-    import os, json
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    template_names = {
-        "chest_xray":    "Chest X-Ray",
-        "ct_cardiac":    "CT Cardiac (Coronary Angiogram / Calcium Score)",
-        "ct_pa":         "CT Pulmonary Angiography",
-        "mri_heart":     "Cardiac MRI",
-        "lipid_profile": "Lipid Profile (cardiac risk assessment)",
-        "hba1c":         "HbA1c (glycated haemoglobin — diabetes / cardiac risk)",
-    }
-    prompt = (
-        f"You are a cardiac radiologist. Generate a concise, structured radiology impression "
-        f"for a {template_names.get(r.template, r.template)} report.\n\n"
-        f"Findings:\n{json.dumps(findings, indent=2)}\n\n"
-        f"Write a 3–5 sentence impression suitable for a cardiology referral. "
-        f"Include key positive and relevant negative findings. Use standard radiology terminology."
-    )
-    try:
-        resp = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=300,
-            temperature=0.3,
-        )
-        impression = resp.choices[0].message.content.strip()
-        r.impression = impression
-        db.commit()
-        return {"impression": impression}
-    except Exception as e:
-        raise HTTPException(502, f"AI impression generation failed: {str(e)}")
+    result = await generate_radiology_impression(r.template, findings)
+    r.impression = result["impression"]
+    db.commit()
+    return result

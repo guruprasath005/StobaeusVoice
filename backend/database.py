@@ -20,7 +20,7 @@ class User(Base):
     email      = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     full_name  = Column(String)
-    role       = Column(String)                         # doctor/radiologist/nurse/admin
+    role       = Column(String)                         # cardiologist/cardiac_surgeon/cardiac_nurse/admin
     hospital   = Column(String)
     is_active  = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
