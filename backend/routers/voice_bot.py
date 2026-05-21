@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from database import get_db, VoiceBotCall, Patient, Consultation, DischargeSummary
-from routers.auth import get_current_user, User
+from routers.auth import get_current_user, assert_owner, User
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
@@ -19,8 +19,11 @@ class TriggerCallRequest(BaseModel):
 
 @router.get("/calls")
 def list_calls(skip: int = 0, limit: int = 40,
-               db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    calls = db.query(VoiceBotCall).order_by(desc(VoiceBotCall.created_at)).offset(skip).limit(limit).all()
+               db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = db.query(VoiceBotCall)
+    if current_user.role != "admin":
+        q = q.filter(VoiceBotCall.created_by == current_user.id)
+    calls = q.order_by(desc(VoiceBotCall.created_at)).offset(skip).limit(limit).all()
     result = []
     for c in calls:
         patient = db.query(Patient).filter(Patient.patient_id == c.patient_id).first() if c.patient_id else None
@@ -60,10 +63,11 @@ def trigger_call(req: TriggerCallRequest,
 
 @router.patch("/calls/{call_id}")
 def update_call(call_id: str, data: dict,
-                db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+                db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     call = db.query(VoiceBotCall).filter(VoiceBotCall.call_id == call_id).first()
     if not call:
         raise HTTPException(404, "Call not found")
+    assert_owner(call.created_by, current_user)
     if "status" in data: call.status = data["status"]
     if "transcript" in data: call.transcript = data["transcript"]
     if "summary" in data: call.summary = data["summary"]
@@ -74,25 +78,23 @@ def update_call(call_id: str, data: dict,
 
 
 @router.delete("/calls/{call_id}")
-def cancel_call(call_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def cancel_call(call_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     call = db.query(VoiceBotCall).filter(VoiceBotCall.call_id == call_id).first()
     if not call:
         raise HTTPException(404, "Call not found")
+    assert_owner(call.created_by, current_user)
     call.status = "cancelled"
     db.commit()
     return {"ok": True}
 
 
 @router.get("/eligible-patients")
-def eligible_patients(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def eligible_patients(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Patients with a finalized discharge summary who haven't had a voice bot call yet."""
-    summaries = (
-        db.query(DischargeSummary)
-        .filter(DischargeSummary.status == "final")
-        .order_by(desc(DischargeSummary.created_at))
-        .limit(50)
-        .all()
-    )
+    summary_q = db.query(DischargeSummary).filter(DischargeSummary.status == "final")
+    if current_user.role != "admin":
+        summary_q = summary_q.filter(DischargeSummary.doctor_id == current_user.id)
+    summaries = summary_q.order_by(desc(DischargeSummary.created_at)).limit(50).all()
     existing_calls = {c.patient_id for c in db.query(VoiceBotCall).filter(VoiceBotCall.status != "cancelled").all()}
     result = []
     seen = set()

@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db, Consultation, Patient, PatientClinical, Prescription, DischargeSummary
-from routers.auth import get_current_user, User
+from routers.auth import get_current_user, require_admin, assert_owner, User
 from services.transcription import transcribe_audio
 from services.note_generation import generate_soap_note
+from audit import log_access
 from datetime import datetime, timezone, timedelta
 import uuid
 
@@ -15,13 +16,13 @@ router = APIRouter(prefix="/consultations", tags=["consultations"])
 # ── Dashboard stats ───────────────────────────────────────────────
 
 @router.get("/alerts")
-def get_alerts(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """Pending consultations needing approval + echo reports needing impression."""
+def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Pending consultations needing approval + echo reports needing impression — current doctor only."""
     from database import EchoReport
 
     pending_rows = db.query(Consultation, Patient)\
         .outerjoin(Patient, Consultation.patient_id == Patient.patient_id)\
-        .filter(Consultation.status == "reviewing")\
+        .filter(Consultation.status == "reviewing", Consultation.doctor_id == current_user.id)\
         .order_by(Consultation.started_at.desc()).limit(20).all()
 
     pending_consultations = [
@@ -37,7 +38,8 @@ def get_alerts(db: Session = Depends(get_db), _: User = Depends(get_current_user
 
     echo_rows = db.query(EchoReport, Patient)\
         .outerjoin(Patient, EchoReport.patient_id == Patient.patient_id)\
-        .filter(EchoReport.status == "draft", EchoReport.impression == None)\
+        .filter(EchoReport.status == "draft", EchoReport.impression == None,
+                EchoReport.doctor_id == current_user.id)\
         .order_by(EchoReport.created_at.desc()).limit(20).all()
 
     pending_echo = [
@@ -125,8 +127,8 @@ def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(
 # ── Admin stats ───────────────────────────────────────────────────
 
 @router.get("/admin-stats")
-def admin_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """System-wide stats for admin dashboard."""
+def admin_stats(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """System-wide stats for admin dashboard. Admin only."""
     from database import User as DBUser, Prescription, EchoReport, DischargeSummary
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -230,11 +232,12 @@ async def transcribe(
     session_id: str,
     audio: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     consultation = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not consultation:
         raise HTTPException(404, "Session not found")
+    assert_owner(consultation.doctor_id, current_user)
 
     # Read audio bytes into memory only — never written to disk
     audio_bytes = await audio.read()
@@ -255,10 +258,11 @@ class TranscriptUpdate(BaseModel):
     transcript: str
 
 @router.patch("/{session_id}/transcript")
-def update_transcript(session_id: str, body: TranscriptUpdate, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def update_transcript(session_id: str, body: TranscriptUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     c = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not c:
         raise HTTPException(404, "Session not found")
+    assert_owner(c.doctor_id, current_user)
     c.transcript = body.transcript
     db.commit()
     return {"ok": True}
@@ -267,10 +271,11 @@ def update_transcript(session_id: str, body: TranscriptUpdate, db: Session = Dep
 # ── Generate SOAP note from transcript ────────────────────────────
 
 @router.post("/{session_id}/generate-note")
-async def generate_note(session_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+async def generate_note(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     c = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not c:
         raise HTTPException(404, "Session not found")
+    assert_owner(c.doctor_id, current_user)
     if not c.transcript:
         raise HTTPException(400, "No transcript available")
 
@@ -311,10 +316,11 @@ class ApproveRequest(BaseModel):
     prescription: Optional[list] = None
 
 @router.post("/{session_id}/approve")
-def approve_note(session_id: str, body: ApproveRequest, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def approve_note(session_id: str, body: ApproveRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     c = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not c:
         raise HTTPException(404, "Session not found")
+    assert_owner(c.doctor_id, current_user)
     c.soap_note = body.soap_note
     if body.prescription:
         c.prescription = body.prescription
@@ -333,6 +339,7 @@ def approve_note(session_id: str, body: ApproveRequest, db: Session = Depends(ge
         db.add(Prescription(
             rx_id=rx_id,
             patient_id=c.patient_id,
+            doctor_id=c.doctor_id,
             session_id=session_id,
             diagnosis=diagnosis,
             drugs=drugs,
@@ -340,16 +347,19 @@ def approve_note(session_id: str, body: ApproveRequest, db: Session = Depends(ge
         ))
 
     db.commit()
+    log_access(db, current_user.id, "approve", "consultation", session_id, c.patient_id)
     return {"ok": True, "session_id": session_id}
 
 
 # ── Get consultation (for review screen) ─────────────────────────
 
 @router.get("/{session_id}")
-def get_consultation(session_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_consultation(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     c = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not c:
         raise HTTPException(404, "Not found")
+    assert_owner(c.doctor_id, current_user)
+    log_access(db, current_user.id, "view", "consultation", session_id, c.patient_id)
 
     # Join patient name from DB (only for display, never sent to LLM)
     patient_display = None

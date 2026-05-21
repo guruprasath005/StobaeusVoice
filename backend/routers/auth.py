@@ -6,7 +6,7 @@ from typing import Optional
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 import bcrypt
-from database import get_db, User
+from database import get_db, User, AccessLog
 import os
 import uuid
 
@@ -57,6 +57,17 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+def assert_owner(owner_id: Optional[str], user: User) -> None:
+    """
+    Raise 403 unless `user` owns the resource (its doctor/creator id matches)
+    or is an admin. Records with no owner are treated as admin-only.
+    """
+    if user.role == "admin":
+        return
+    if not owner_id or owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
 
 
 # --- schemas ---
@@ -180,6 +191,26 @@ def toggle_user(user_id: str, db: Session = Depends(get_db), admin: User = Depen
     user.is_active = not user.is_active
     db.commit()
     return {"id": user.id, "is_active": user.is_active}
+
+@router.get("/audit-logs")
+def list_audit_logs(limit: int = 100, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """DPDP access-audit trail — who viewed/exported which patient data. Admin only."""
+    rows = db.query(AccessLog).order_by(AccessLog.created_at.desc()).limit(min(limit, 500)).all()
+    user_names = {u.id: u.full_name for u in db.query(User).all()}
+    return [
+        {
+            "id": r.id,
+            "user_id": r.user_id,
+            "user_name": user_names.get(r.user_id),
+            "action": r.action,
+            "resource_type": r.resource_type,
+            "resource_id": r.resource_id,
+            "patient_id": r.patient_id,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
 
 @router.patch("/users/{user_id}/reset-password")
 def reset_password(user_id: str, body: dict, db: Session = Depends(get_db), _: User = Depends(require_admin)):

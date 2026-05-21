@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, DischargeSummary, Consultation, Patient, PatientClinical, EchoReport, Prescription
-from routers.auth import get_current_user, User
+from routers.auth import get_current_user, assert_owner, User
 from services.discharge_generation import generate_discharge_summary
+from audit import log_access
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
@@ -29,15 +30,17 @@ class UpdateSummaryRequest(BaseModel):
 # ── Routes ───────────────────────────────────────────────────────────
 
 @router.post("/generate/{session_id}")
-async def generate_from_consultation(session_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+async def generate_from_consultation(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Return existing summary if already generated for this session
     existing = db.query(DischargeSummary).filter(DischargeSummary.session_id == session_id).first()
     if existing:
+        assert_owner(existing.doctor_id, current_user)
         return {"summary_id": existing.summary_id, "existing": True}
 
     consultation = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not consultation:
         raise HTTPException(404, "Consultation not found")
+    assert_owner(consultation.doctor_id, current_user)
 
     # Clinical context (no PII) for LLM
     clinical = {}
@@ -95,14 +98,17 @@ async def generate_from_consultation(session_id: str, db: Session = Depends(get_
     )
     db.add(ds)
     db.commit()
+    log_access(db, current_user.id, "create", "discharge", summary_id, consultation.patient_id)
     return {"summary_id": summary_id, "existing": False}
 
 
 @router.get("/{summary_id}")
-def get_summary(summary_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_summary(summary_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     ds = db.query(DischargeSummary).filter(DischargeSummary.summary_id == summary_id).first()
     if not ds:
         raise HTTPException(404, "Discharge summary not found")
+    assert_owner(ds.doctor_id, current_user)
+    log_access(db, current_user.id, "view", "discharge", summary_id, ds.patient_id)
 
     patient = db.query(Patient).filter(Patient.patient_id == ds.patient_id).first() if ds.patient_id else None
 
@@ -123,10 +129,11 @@ def get_summary(summary_id: str, db: Session = Depends(get_db), _: User = Depend
 
 
 @router.patch("/{summary_id}")
-def update_summary(summary_id: str, req: UpdateSummaryRequest, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def update_summary(summary_id: str, req: UpdateSummaryRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     ds = db.query(DischargeSummary).filter(DischargeSummary.summary_id == summary_id).first()
     if not ds:
         raise HTTPException(404, "Discharge summary not found")
+    assert_owner(ds.doctor_id, current_user)
     if req.sections is not None:
         ds.sections = req.sections
     if req.discharge_meds is not None:
@@ -138,20 +145,23 @@ def update_summary(summary_id: str, req: UpdateSummaryRequest, db: Session = Dep
 
 
 @router.post("/{summary_id}/finalize")
-def finalize_summary(summary_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def finalize_summary(summary_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     ds = db.query(DischargeSummary).filter(DischargeSummary.summary_id == summary_id).first()
     if not ds:
         raise HTTPException(404, "Discharge summary not found")
+    assert_owner(ds.doctor_id, current_user)
     ds.status = "final"
     db.commit()
     return {"status": "final"}
 
 
 @router.post("/{summary_id}/send-whatsapp")
-def send_whatsapp(summary_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def send_whatsapp(summary_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     ds = db.query(DischargeSummary).filter(DischargeSummary.summary_id == summary_id).first()
     if not ds:
         raise HTTPException(404, "Discharge summary not found")
+    assert_owner(ds.doctor_id, current_user)
+    log_access(db, current_user.id, "export", "discharge", summary_id, ds.patient_id)
     patient = db.query(Patient).filter(Patient.patient_id == ds.patient_id).first() if ds.patient_id else None
 
     sections = ds.sections or {}

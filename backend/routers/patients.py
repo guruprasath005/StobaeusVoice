@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from database import get_db, Patient, PatientClinical
 from routers.auth import get_current_user, User
+from audit import log_access
 from datetime import date, datetime, timezone
 import uuid, re
 
@@ -167,11 +168,12 @@ def search_patients(q: str, db: Session = Depends(get_db), _: User = Depends(get
 
 
 @router.get("/{patient_id}")
-def get_patient(patient_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_patient(patient_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Returns patient PII + clinical context for display (not for LLM)."""
     p = db.query(Patient).filter(Patient.patient_id == patient_id).first()
     if not p:
         raise HTTPException(404, "Patient not found")
+    log_access(db, current_user.id, "view", "patient", patient_id, patient_id)
     c = db.query(PatientClinical).filter(PatientClinical.patient_id == patient_id).first()
     return {
         "patient_id": p.patient_id,

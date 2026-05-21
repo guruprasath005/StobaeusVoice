@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from database import get_db, RadiologyReport, Patient
-from routers.auth import get_current_user, User
+from routers.auth import get_current_user, assert_owner, User
 from services.transcription import transcribe_audio
 from services.radiology_generation import generate_radiology_impression
 from pydantic import BaseModel
@@ -29,8 +29,10 @@ class UpdateReportRequest(BaseModel):
 @router.get("/reports")
 def list_reports(patient_id: Optional[str] = None, template: Optional[str] = None,
                  skip: int = 0, limit: int = 30,
-                 db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+                 db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     q = db.query(RadiologyReport)
+    if current_user.role != "admin":
+        q = q.filter(RadiologyReport.doctor_id == current_user.id)
     if patient_id:
         q = q.filter(RadiologyReport.patient_id == patient_id)
     if template:
@@ -71,10 +73,11 @@ def create_report(req: CreateReportRequest,
 
 
 @router.get("/reports/{report_id}")
-def get_report(report_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_report(report_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(RadiologyReport).filter(RadiologyReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     patient = db.query(Patient).filter(Patient.patient_id == r.patient_id).first() if r.patient_id else None
     return {
         "report_id": r.report_id, "patient_id": r.patient_id,
@@ -89,10 +92,11 @@ def get_report(report_id: str, db: Session = Depends(get_db), _: User = Depends(
 
 @router.patch("/reports/{report_id}")
 def save_report(report_id: str, req: UpdateReportRequest,
-                db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+                db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(RadiologyReport).filter(RadiologyReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     if req.findings is not None: r.findings = req.findings
     if req.impression is not None: r.impression = req.impression
     if req.icd_codes is not None: r.icd_codes = req.icd_codes
@@ -102,10 +106,11 @@ def save_report(report_id: str, req: UpdateReportRequest,
 
 @router.post("/reports/{report_id}/finalize")
 def finalize_report(report_id: str, req: UpdateReportRequest,
-                    db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+                    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(RadiologyReport).filter(RadiologyReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     if req.findings is not None: r.findings = req.findings
     if req.impression is not None: r.impression = req.impression
     if req.icd_codes is not None: r.icd_codes = req.icd_codes
@@ -120,11 +125,12 @@ async def dictate_field(
     report_id: str,
     audio: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     r = db.query(RadiologyReport).filter(RadiologyReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     audio_bytes = await audio.read()
     transcript = await transcribe_audio(audio_bytes, filename=audio.filename or "audio.webm")
     return {"transcript": transcript}
@@ -132,10 +138,11 @@ async def dictate_field(
 
 @router.post("/reports/{report_id}/generate-impression")
 async def generate_impression(report_id: str,
-                              db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+                              db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(RadiologyReport).filter(RadiologyReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     findings = r.findings or {}
     if not findings:
         raise HTTPException(400, "No findings to generate impression from")

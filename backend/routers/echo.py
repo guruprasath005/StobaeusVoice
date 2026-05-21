@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db, EchoReport, Patient, PatientClinical
-from routers.auth import get_current_user, User
+from routers.auth import get_current_user, assert_owner, User
 from services.echo_generation import generate_echo_impression
 from services.transcription import transcribe_audio
 from datetime import datetime, timezone
@@ -49,8 +49,10 @@ def create_report(req: CreateReportRequest, db: Session = Depends(get_db), curre
 
 
 @router.get("/reports")
-def list_reports(patient_id: Optional[str] = None, limit: int = 30, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def list_reports(patient_id: Optional[str] = None, limit: int = 30, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(EchoReport)
+    if current_user.role != "admin":
+        query = query.filter(EchoReport.doctor_id == current_user.id)
     if patient_id:
         query = query.filter(EchoReport.patient_id == patient_id)
     reports = query.order_by(EchoReport.created_at.desc()).limit(limit).all()
@@ -76,10 +78,11 @@ def list_reports(patient_id: Optional[str] = None, limit: int = 30, db: Session 
 
 
 @router.get("/reports/{report_id}")
-def get_report(report_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_report(report_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     patient_display = None
     if r.patient_id and not r.patient_id.startswith("PT-ANON"):
         p = db.query(Patient).filter(Patient.patient_id == r.patient_id).first()
@@ -99,10 +102,11 @@ def get_report(report_id: str, db: Session = Depends(get_db), _: User = Depends(
 
 
 @router.patch("/reports/{report_id}")
-def save_report(report_id: str, req: SaveReportRequest, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def save_report(report_id: str, req: SaveReportRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     r.findings = req.findings
     if req.impression is not None:
         r.impression = req.impression
@@ -113,10 +117,11 @@ def save_report(report_id: str, req: SaveReportRequest, db: Session = Depends(ge
 
 
 @router.post("/reports/{report_id}/finalize")
-def finalize_report(report_id: str, req: FinalizeRequest, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def finalize_report(report_id: str, req: FinalizeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     r.findings = req.findings
     r.impression = req.impression
     r.icd_codes = req.icd_codes or []
@@ -127,11 +132,12 @@ def finalize_report(report_id: str, req: FinalizeRequest, db: Session = Depends(
 
 
 @router.post("/reports/{report_id}/generate-impression")
-async def generate_impression(report_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+async def generate_impression(report_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Run GPT-4o on the saved findings to generate impression + ICD codes. No PII sent."""
     r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     if not r.findings:
         raise HTTPException(400, "No findings saved — fill in findings first")
 
@@ -157,12 +163,13 @@ async def dictate_impression(
     report_id: str,
     audio: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Transcribe dictated impression audio. Audio not stored."""
     r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
     audio_bytes = await audio.read()
     transcript = await transcribe_audio(audio_bytes, filename=audio.filename or "audio.webm")
     return {"transcript": transcript}

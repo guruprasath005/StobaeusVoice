@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from database import get_db, IpdNote, NurseBedLog, Patient
-from routers.auth import get_current_user, User
+from routers.auth import get_current_user, assert_owner, User
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
@@ -63,11 +63,12 @@ def create_note(req: IpdNoteRequest, db: Session = Depends(get_db), current_user
 
 
 @router.get("/notes/{note_id}")
-def get_note(note_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_note(note_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     note = db.query(IpdNote).filter(IpdNote.note_id == note_id).first()
     if not note:
         from fastapi import HTTPException
         raise HTTPException(404, "Note not found")
+    assert_owner(note.doctor_id, current_user)
     patient = db.query(Patient).filter(Patient.patient_id == note.patient_id).first() if note.patient_id else None
     return {
         "note_id": note.note_id,
@@ -83,11 +84,12 @@ def get_note(note_id: str, db: Session = Depends(get_db), _: User = Depends(get_
 
 
 @router.patch("/notes/{note_id}")
-def update_note(note_id: str, req: IpdNoteRequest, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def update_note(note_id: str, req: IpdNoteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     note = db.query(IpdNote).filter(IpdNote.note_id == note_id).first()
     if not note:
         from fastapi import HTTPException
         raise HTTPException(404, "Note not found")
+    assert_owner(note.doctor_id, current_user)
     if req.vitals is not None: note.vitals = req.vitals
     if req.status_text is not None: note.status_text = req.status_text
     if req.assessment is not None: note.assessment = req.assessment
