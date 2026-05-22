@@ -250,20 +250,22 @@ function DicomViewer({ template, patientName, patientId }: {
   const [manualUid, setManualUid] = useState("");
   const [showManual, setShowManual] = useState(false);
 
-  // Auto-search when patient is assigned
+  // Auto-search via backend proxy (avoids CORS)
   useEffect(() => {
     if (!patientId || patientId.startsWith("PT-ANON")) return;
     setSearching(true);
-    fetch(`${PACS_BASE}/dicom-web/studies?PatientID=${encodeURIComponent(patientId)}`, {
-      headers: { "Authorization": "Basic " + btoa("orthanc:orthanc"), "Accept": "application/dicom+json" }
+    api.pacsSearch({
+      wado_base: `${PACS_BASE}/dicom-web`,
+      patient_id: patientId,
+      username: "orthanc",
+      password: "orthanc",
     })
-      .then(r => r.ok ? r.json() : [])
-      .then((data: Record<string, { Value: unknown[] }>[]) => {
-        const list = (Array.isArray(data) ? data : []).map((s) => ({
-          study_uid: String((s["0020000D"]?.Value ?? [""])[0] ?? ""),
-          study_date: String((s["00080020"]?.Value ?? [""])[0] ?? ""),
-          study_description: String((s["00081030"]?.Value ?? ["No description"])[0] ?? "No description"),
-        })).filter(s => s.study_uid);
+      .then((data) => {
+        const list = (Array.isArray(data) ? data : []).map((s: { study_uid: string; study_date: string; study_description: string }) => ({
+          study_uid: s.study_uid,
+          study_date: s.study_date,
+          study_description: s.study_description || "No description",
+        })).filter((s: { study_uid: string }) => s.study_uid);
         setStudies(list);
         if (list.length === 1) setSelectedUid(list[0].study_uid);
       })

@@ -1019,23 +1019,20 @@ export default function EchoReportPage() {
           setPacsImportMeta({ base: f._pacs_dicomweb_base as string, studyUid: f._pacs_study_uid as string });
         }
       } else if (d.patient_id) {
-        // Auto-search PACS by patient ID to build View in PACS link
+        // Auto-search PACS via backend proxy to build View in PACS link
         try {
           const pacsBase = DEFAULT_PACS;
-          const resp = await fetch(
-            `${pacsBase}/studies?PatientID=${encodeURIComponent(d.patient_id)}`,
-            { headers: { Authorization: "Basic " + btoa("orthanc:orthanc"), Accept: "application/dicom+json" } },
-          );
-          if (resp.ok) {
-            const studies = await resp.json();
-            if (Array.isArray(studies) && studies.length > 0) {
-              const uid = String((studies[0]["0020000D"]?.Value ?? [""])[0] ?? "");
-              if (uid) {
-                const base = pacsBase.replace("/dicom-web", "");
-                setPacsStudyUrl(`${base}/ui/app/#/viewer?StudyInstanceUIDs=${uid}`);
-                setPacsImportMeta({ base: pacsBase, studyUid: uid });
-              }
-            }
+          const studies = await api.pacsSearch({
+            wado_base: pacsBase,
+            patient_id: d.patient_id,
+            username: "orthanc",
+            password: "orthanc",
+          });
+          if (Array.isArray(studies) && studies.length > 0 && studies[0].study_uid) {
+            const uid = studies[0].study_uid;
+            const base = pacsBase.replace("/dicom-web", "");
+            setPacsStudyUrl(`${base}/ui/app/#/viewer?StudyInstanceUIDs=${uid}`);
+            setPacsImportMeta({ base: pacsBase, studyUid: uid });
           }
         } catch { /* PACS not reachable — silently skip */ }
       }
