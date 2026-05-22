@@ -224,9 +224,9 @@ export default function ActiveConsultationPage() {
       // Open the live-transcription WebSocket. WebSockets can't send headers,
       // so the JWT travels as a query param.
       const token = typeof window !== "undefined" ? localStorage.getItem("sv_token") || "" : "";
-      const wsUrl =
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/^http/, "ws") +
-        `/ws/transcribe?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}`;
+      const backendPort = process.env.NEXT_PUBLIC_WS_PORT || "8000";
+      const wsBase = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${backendPort}`;
+      const wsUrl = `${wsBase}/ws/transcribe?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
