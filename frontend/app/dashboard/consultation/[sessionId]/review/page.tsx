@@ -6,6 +6,14 @@ import { api } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────
 
+interface ClinicalAlert {
+  severity: "critical" | "warning" | "info";
+  type: string;
+  title: string;
+  message: string;
+  drugs: string[];
+}
+
 interface SoapNote {
   subjective?: string;
   objective?: string;
@@ -133,6 +141,9 @@ export default function ReviewPage() {
   const [generatingDs, setGeneratingDs] = useState(false);
   const [error, setError] = useState("");
   const [leftTab, setLeftTab] = useState<"transcript" | "previous">("transcript");
+  const [tabInitialized, setTabInitialized] = useState(false);
+  const [clinicalAlerts, setClinicalAlerts] = useState<ClinicalAlert[]>([]);
+  const [exportingFhir, setExportingFhir] = useState(false);
 
   // New ICD code input
   const [newIcd, setNewIcd] = useState({ code: "", description: "" });
@@ -149,12 +160,48 @@ export default function ReviewPage() {
       setPrescription(Array.isArray(rx) ? rx as { drug: string; dose?: string; freq?: string; duration?: string; instructions?: string }[] : []);
       // An already-approved note opened from patient history is locked.
       if (d.status === "approved" || d.status === "pushed") setSaved(true);
+      // Default to Previous Visit tab for follow-ups so the doctor can compare side-by-side.
+      if (!tabInitialized && d.is_followup && d.previous_consultation) {
+        setLeftTab("previous");
+        setTabInitialized(true);
+      }
+      // Check clinical alerts: SOAP prescription drugs + patient conditions
+      if (d.patient_id && !d.patient_id.startsWith("PT-ANON")) {
+        const rxMeds = (d.prescription || d.soap_note?.prescription || []) as { drug: string; dose?: string; freq?: string }[];
+        if (rxMeds.length > 0) {
+          api.getClinicalContext(d.patient_id).then((ctx: { conditions?: string[] } | null) => {
+            const conditions = ctx?.conditions || [];
+            api.checkClinicalAlerts(rxMeds, conditions).then((res: { alerts: ClinicalAlert[] }) => {
+              setClinicalAlerts(res.alerts || []);
+            }).catch(() => {});
+          }).catch(() => {});
+        }
+      }
     }).catch(() => setError("Failed to load consultation"))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   const updateSoap = (key: keyof SoapNote) => (val: string) =>
     setSoap(s => ({ ...s, [key]: val }));
+
+  const handleFhirExport = async () => {
+    setExportingFhir(true);
+    try {
+      const bundle = await api.getConsultationFhir(sessionId);
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/fhir+json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `consult-${sessionId.slice(0, 8)}.fhir.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("FHIR export failed — ensure note is approved and backend is running.");
+    } finally {
+      setExportingFhir(false);
+    }
+  };
 
   const approve = async () => {
     setSaving(true); setError("");
@@ -308,6 +355,22 @@ export default function ReviewPage() {
             )}
             {saved && (
               <button
+                onClick={handleFhirExport}
+                disabled={exportingFhir}
+                className="flex items-center gap-1.5 text-xs text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition cursor-pointer disabled:opacity-50"
+                style={{ border: "1.5px solid #d4d4d2" }}
+                title="Download ABDM-compliant FHIR R4 Bundle"
+              >
+                {exportingFhir ? (
+                  <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                )}
+                FHIR R4
+              </button>
+            )}
+            {saved && (
+              <button
                 onClick={generateDischarge}
                 disabled={generatingDs}
                 className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer disabled:opacity-50 shrink-0"
@@ -345,6 +408,58 @@ export default function ReviewPage() {
         )}
 
         <div className="p-5 flex flex-col gap-4">
+          {/* Follow-up context banner */}
+          {data.is_followup && (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50" style={{ border: "1px solid #fcd34d" }}>
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-1" />
+              <div>
+                <p className="text-xs font-semibold text-amber-800">Follow-up note — delta from previous visit</p>
+                <p className="text-[10px] text-amber-600 mt-0.5">
+                  AI generated this note with the previous SOAP as context. It highlights what changed — continued items carry forward implicitly.
+                  Use the &ldquo;Previous Visit&rdquo; tab on the left to compare.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Clinical safety alerts */}
+          {clinicalAlerts.length > 0 && (
+            <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #EF4444" }}>
+              <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px dashed #fca5a5", background: "#FEF2F2" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                <h3 className="text-sm font-bold text-red-800">
+                  Clinical Safety Alerts
+                  <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                    {clinicalAlerts.filter(a => a.severity === "critical").length > 0
+                      ? `${clinicalAlerts.filter(a => a.severity === "critical").length} critical`
+                      : `${clinicalAlerts.length} warnings`}
+                  </span>
+                </h3>
+              </div>
+              <div className="divide-y divide-dashed" style={{ borderColor: "#ececea" }}>
+                {clinicalAlerts.map((a, i) => {
+                  const critical = a.severity === "critical";
+                  return (
+                    <div key={i} className="flex gap-2.5 px-4 py-3" style={{ background: critical ? "#FEF2F2" : "#FFFBEB" }}>
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${critical ? "bg-red-500" : "bg-amber-400"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-bold ${critical ? "text-red-800" : "text-amber-800"}`}>{a.title}</p>
+                        <p className={`text-[11px] mt-0.5 leading-relaxed ${critical ? "text-red-700" : "text-amber-700"}`}>{a.message}</p>
+                        {a.drugs.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {a.drugs.map((d, di) => (
+                              <span key={di} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${critical ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{d}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* SOAP sections */}
           <SoapSection
             label="S — Subjective (Patient's complaints)"

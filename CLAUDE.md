@@ -317,30 +317,37 @@ CREATE TABLE consultations (
 
 ---
 
-## What to Build Next (Priority Order)
+## What to Build Next
 
-> Priority order updated based on Indian hospital cardiology workflow research (May 2026).
-> Research findings in section below.
+> Full detail — the 13-stage traditional hospital workflow, the product overlay,
+> and per-item build specs — lives in **`docs/BUILD_PLAN.md`**. This is the summary.
+> Priority order based on Indian cardiology workflow research (May 2026).
 
-1. ✅ JWT Auth — invite-only login, admin creates accounts
-2. ✅ Cardiologist Dashboard — sidebar + stats + consultation queue (mock data → real data)
-3. ✅ Cardiac patient registration (Screen 0B) + patients list page
-4. ✅ Start Consultation modal (Screen 0A) — search / register / anonymous
-5. ✅ Active Consultation recording — MediaRecorder → Whisper → transcript + PII firewall sidebar
-6. ✅ Cardiac SOAP note generation — GPT-4o (NO PII), editable S/O/A/P, ICD-10, approve & save
-7. ✅ Echo / Cath Lab dictation — Echo / Cath / Stress Test / Holter templates, AI impression, dictation
-8. ✅ Prescription Manager — cardiac drug list (55 drugs), interaction checker, WhatsApp send, auto-created on consultation approve
-9. **Follow-up OPD mode** — highest-frequency consultation type; cardiologists currently write 3–4 lines or nothing; show previous SOAP, only note what changed
-10. **Discharge Summary auto-generation** — most hated task in Indian hospitals; residents write hours/days post-discharge; we already have all data (SOAP + ICD + meds) to generate it
-11. **Cath report completeness** — add haemodynamics (LVEDP, aortic pressure), contrast volume (mL), fluoroscopy time, access site (radial/femoral), complications, stent brand/size/length; these fields are on every Indian cath lab paper form
-12. Clinical alerts — cardiac contraindications, drug interactions (warfarin+aspirin+clopidogrel triple therapy, NOAC+antiplatelets)
-13. Cardiac Nurse Station — CCU voice charting ("Bed 4 BP 100/70, dopamine 8 mcg/kg/min" → structured flow sheet); wireframe exists (Screen 06)
-14. IPD progress note mode — fast bedside ward round note; differs from OPD: no new history, just vitals + clinical status + plan update
-15. Patient voice bot — post-discharge cardiac symptom monitoring
-16. Appointment bot — cardiology slot booking
-17. Admin dashboard — wire up real data (notes by cardiologist, ABDM milestones, cost savings)
-18. **DICOM / PACS Integration (dcm4che)** — pull echo SR (Structured Report) measurements directly into echo form fields; pull cath DICOM SR into cath report; "Import from PACS" button on echo/cath detail page. Build when first hospital requests it — don't pre-build.
-19. Swap to self-hosted Llama (Phase 2, ~100 cardiologists)
+**Built (✅):** JWT auth · cardiologist dashboard · patient registration + PII firewall ·
+Start-Consultation modal · active consultation + live dictation · GPT-4o SOAP + ICD-10 ·
+echo/cath/stress/holter dictation · prescription manager + WhatsApp · **discharge summary
+auto-generation (OPD + IPD)** · **full IPD flow** (admissions, bed tiers, admin ward/bed
+CRUD, AI admission + progress notes, STEMI fast-track, bed transfers) · care-team record
+access · backend refactor Phase 1 (config/models/db/tests).
+
+**Build next** — specs in `docs/BUILD_PLAN.md`:
+- **B1 Follow-up OPD mode** — show previous SOAP, capture only the delta *(HIGH)*
+- **B2 Cath lab completeness** — LVEDP, contrast vol, fluoro time, access site, stent/TIMI fields *(HIGH)*
+- **B3 Clinical alerts engine** — drug interactions + cardiac contraindications; wire the Alerts page *(HIGH)*
+- **B4 ABDM FHIR R4 export** — mandatory for hospital pilots *(HIGH)*
+- **B5 Post-discharge voice bot** — finish symptom monitoring + INR reminders *(MEDIUM)*
+- **B6 Nurse Station voice charting** — CCU spoken vitals → flow sheet (Screen 06) *(MEDIUM)*
+- **B7 Appointment bot** — multilingual inbound slot booking *(MEDIUM)*
+- **B8 EMR push adapters** — Practo / KareXpert / NIC eHospital *(MEDIUM, per-hospital)*
+- **B9 TPA pre-auth & claim packet** *(LOWER)*
+
+**Wire (connect existing):** W1 unified patient timeline · W2 OPD→IPD continuity ·
+W3 consult↔diagnostics link · W4 Alerts page → real engine · W5 admin dashboard real data.
+
+**Deferred:** DICOM/PACS import (build on first hospital request) · self-hosted Llama (Phase 2).
+
+**Foundation:** backend refactor Phases 2–5 (thin routers, frontend design system,
+Alembic migrations) interleave between features.
 
 ---
 

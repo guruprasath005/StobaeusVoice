@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 
 interface Appointment {
@@ -61,7 +61,86 @@ function fmt(date: string) {
   return new Date(date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
 }
 
+interface ChatMessage { role: "user" | "bot"; content: string; booked?: { appt_id: string; slot_date: string; slot_time: string } | null; }
+
+function BotChat() {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: "bot", content: "Hi! I can help book cardiology appointments. Tell me the patient name, preferred date, time, and appointment type (consultation / echo / cath / followup)." }
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const send = async () => {
+    if (!input.trim() || sending) return;
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setSending(true);
+    try {
+      const history = messages.map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.content }));
+      const res = await api.appointmentBotChat(userMsg, history);
+      setMessages(prev => [...prev, { role: "bot", content: res.reply, booked: res.booked }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "bot", content: "Sorry, I couldn't process that. Please try again." }]);
+    }
+    setSending(false);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-auto p-5 flex flex-col gap-3">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${m.role === "user"
+              ? "bg-[#e11d48] text-white rounded-br-sm"
+              : "bg-white text-gray-800 rounded-bl-sm"
+            }`} style={m.role === "bot" ? { border: "1.5px solid #1a1a1a" } : {}}>
+              {m.content}
+              {m.booked && (
+                <div className="mt-2 pt-2 border-t border-green-200 text-[10px] text-green-700 font-semibold">
+                  Booked: {m.booked.slot_date} at {m.booked.slot_time} · ID: {m.booked.appt_id}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {sending && (
+          <div className="flex justify-start">
+            <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-white text-xs text-gray-400" style={{ border: "1.5px solid #d4d4d2" }}>
+              Thinking…
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+      <div className="px-5 pb-5 shrink-0">
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="e.g. Book consultation for Ravi Kumar on Friday at 10am"
+            className="flex-1 px-3 py-2 text-xs rounded-xl outline-none focus:ring-2 focus:ring-[#e11d48] bg-white"
+            style={{ border: "1.5px solid #d4d4d2" }}
+          />
+          <button
+            onClick={send}
+            disabled={sending || !input.trim()}
+            className="px-4 py-2 text-xs font-semibold bg-[#e11d48] text-white rounded-xl hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50 shrink-0"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppointmentsPage() {
+  const [activeTab, setActiveTab] = useState<"schedule" | "bot">("schedule");
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -140,13 +219,25 @@ export default function AppointmentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-5 h-[72px] bg-white sticky top-0 z-10 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
         <div className="flex items-center gap-3">
-          <h1 className="font-hand text-2xl font-bold text-gray-900">Appointment Bot</h1>
+          <h1 className="font-hand text-2xl font-bold text-gray-900">Appointments</h1>
           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#ffe4e6] text-[#9f1239]">Cardiology Scheduling</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">{appointments.length} appt{appointments.length !== 1 ? "s" : ""} today</span>
+          {activeTab === "schedule" && <span className="text-xs text-gray-500">{appointments.length} appt{appointments.length !== 1 ? "s" : ""} today</span>}
+          <div className="flex gap-1 ml-2">
+            {(["schedule", "bot"] as const).map(t => (
+              <button key={t} onClick={() => setActiveTab(t)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
+                style={activeTab === t ? { background: "#ffe4e6", color: "#9f1239" } : { color: "#6B7280" }}
+              >
+                {t === "schedule" ? "Schedule" : "Bot Chat"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {activeTab === "bot" ? <BotChat /> : (<>
 
       {/* Date nav */}
       <div className="flex items-center gap-1.5 px-5 py-3 bg-white shrink-0 overflow-x-auto" style={{ borderBottom: "1px dashed #d4d4d2" }}>
@@ -284,6 +375,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }

@@ -85,11 +85,22 @@ CATH_SCHEMA = [
     {"key": "lv_ef",           "type": "number", "unit": "%",   "label": "LV EF on ventriculogram"},
 
     {"key": "recommendation",  "type": "select", "options": ["Medical management", "PCI — single vessel", "PCI — multi vessel", "CABG", "CABG + valve surgery", "Palliative"]},
-    {"key": "pci_vessel",      "type": "text",   "label": "Target vessel (only if PCI done)"},
-    {"key": "stent_brand",     "type": "select", "options": ["Xience (Abbott)", "Resolute Onyx (Medtronic)", "Synergy (BSci)", "BioFreedom (Biosensors)", "Ultimaster (Terumo)", "Supraflex (Sahajanand)", "Coroflex ISAR (B.Braun)", "Other"]},
-    {"key": "stent_dia",       "type": "select", "options": ["2.25 mm", "2.5 mm", "2.75 mm", "3.0 mm", "3.25 mm", "3.5 mm", "3.75 mm", "4.0 mm"]},
-    {"key": "stent_len",       "type": "select", "options": ["8 mm", "12 mm", "14 mm", "16 mm", "18 mm", "20 mm", "23 mm", "24 mm", "28 mm", "32 mm", "38 mm"]},
-    {"key": "post_dilation",   "type": "select", "options": ["No", "Yes — NC balloon", "Yes — cutting balloon"]},
+    {
+        "key": "stents",
+        "type": "json_array",
+        "label": (
+            "Stents deployed — JSON array of objects, one per stent. "
+            "Each object: {\"vessel\": \"LAD proximal\", \"brand\": \"Xience (Abbott)\", "
+            "\"dia\": \"3.0 mm\", \"len\": \"28 mm\", \"post_dilation\": \"No\"}. "
+            "brand must be one of: Xience (Abbott) | Resolute Onyx (Medtronic) | Synergy (BSci) | "
+            "BioFreedom (Biosensors) | Ultimaster (Terumo) | Supraflex (Sahajanand) | "
+            "Coroflex ISAR (B.Braun) | Other. "
+            "dia must be one of: 2.25 mm | 2.5 mm | 2.75 mm | 3.0 mm | 3.25 mm | 3.5 mm | 3.75 mm | 4.0 mm. "
+            "len must be one of: 8 mm | 12 mm | 14 mm | 16 mm | 18 mm | 20 mm | 23 mm | 24 mm | 28 mm | 32 mm | 38 mm. "
+            "post_dilation must be one of: No | Yes — NC balloon | Yes — cutting balloon. "
+            "Only include stents the doctor explicitly mentioned. Omit field if no stents deployed."
+        ),
+    },
     {"key": "complications",   "type": "multiselect", "options": ["Nil", "Coronary dissection", "No-reflow / slow-flow", "Perforation", "Access site haematoma", "Contrast reaction", "Hypotension requiring support", "Arrhythmia", "Cardiac arrest", "Stroke"]},
 ]
 
@@ -150,6 +161,8 @@ def _format_field(field: dict) -> str:
     elif t == "number":
         unit = f" {field['unit']}" if field.get("unit") else ""
         parts.append(f"(number{unit})")
+    elif t == "json_array":
+        parts.append("(JSON array string)")
     else:
         parts.append("(text)")
     if field.get("label"):
@@ -232,8 +245,31 @@ def _build_user_message(
 # Output validation
 # ──────────────────────────────────────────────────────────────────────
 
+_STENT_BRANDS = {"Xience (Abbott)", "Resolute Onyx (Medtronic)", "Synergy (BSci)", "BioFreedom (Biosensors)", "Ultimaster (Terumo)", "Supraflex (Sahajanand)", "Coroflex ISAR (B.Braun)", "Other"}
+_STENT_DIAS   = {"2.25 mm", "2.5 mm", "2.75 mm", "3.0 mm", "3.25 mm", "3.5 mm", "3.75 mm", "4.0 mm"}
+_STENT_LENS   = {"8 mm", "12 mm", "14 mm", "16 mm", "18 mm", "20 mm", "23 mm", "24 mm", "28 mm", "32 mm", "38 mm"}
+_STENT_POSTDIL = {"No", "Yes — NC balloon", "Yes — cutting balloon"}
+
+def _validate_stent(s: dict) -> dict | None:
+    """Validate one stent object; return None if malformed."""
+    if not isinstance(s, dict):
+        return None
+    out: dict = {}
+    if isinstance(s.get("vessel"), str) and s["vessel"].strip():
+        out["vessel"] = s["vessel"].strip()
+    if s.get("brand") in _STENT_BRANDS:
+        out["brand"] = s["brand"]
+    if s.get("dia") in _STENT_DIAS:
+        out["dia"] = s["dia"]
+    if s.get("len") in _STENT_LENS:
+        out["len"] = s["len"]
+    if s.get("post_dilation") in _STENT_POSTDIL:
+        out["post_dilation"] = s["post_dilation"]
+    return out if out else None
+
 def _validate_findings(template: str, raw: dict) -> dict:
     """Drop any value that violates its field's type/options."""
+    import re as _re, json as _json
     schema = {f["key"]: f for f in TEMPLATES[template]["schema"]}
     out: dict = {}
     for key, value in (raw or {}).items():
@@ -252,16 +288,22 @@ def _validate_findings(template: str, raw: dict) -> dict:
             if kept:
                 out[key] = ", ".join(kept)
         elif t == "number":
-            # Allow strings — the form stores numbers as strings. Strip stray "%", "mm", etc.
             if isinstance(value, (int, float)):
                 out[key] = str(value)
             elif isinstance(value, str):
                 cleaned = value.strip().rstrip("%").strip()
-                # Take the first numeric run (e.g. "35.0 percent" → "35.0")
-                import re
-                m = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+                m = _re.search(r"-?\d+(?:\.\d+)?", cleaned)
                 if m:
                     out[key] = m.group(0)
+        elif t == "json_array":
+            try:
+                arr = _json.loads(value) if isinstance(value, str) else value
+                if isinstance(arr, list):
+                    validated = [v for s in arr if (v := _validate_stent(s)) is not None]
+                    if validated:
+                        out[key] = _json.dumps(validated)
+            except (TypeError, ValueError):
+                pass
         else:  # text
             if isinstance(value, str) and value.strip():
                 out[key] = value.strip()

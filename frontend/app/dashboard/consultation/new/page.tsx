@@ -15,6 +15,8 @@ interface SearchResult {
   conditions: string[];
   medications: { drug: string; dose?: string; freq?: string }[];
   allergies: string[];
+  has_recent_consultation: boolean;
+  last_visit_date: string | null;
 }
 
 interface MedEntry { drug: string; dose: string; freq: string; }
@@ -376,13 +378,27 @@ function StartConsultationContent() {
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800">{r.display.split(" · ")[0]}</p>
-                      <p className="text-[10px] font-mono text-gray-400">{r.patient_id} · {r.age}{r.gender_code}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-800">{r.display.split(" · ")[0]}</p>
+                        {r.has_recent_consultation && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 shrink-0" style={{ border: "1px solid #fcd34d" }}>
+                            Return visit
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] font-mono text-gray-400">
+                        {r.patient_id} · {r.age}{r.gender_code}
+                        {r.last_visit_date && (
+                          <span className="ml-1 text-amber-600"> · Last visit {new Date(r.last_visit_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                        )}
+                      </p>
                       {r.conditions.length > 0 && (
                         <p className="text-[10px] text-gray-500 mt-0.5">{r.conditions.slice(0, 3).join(", ")}</p>
                       )}
                     </div>
-                    <span className="text-xs text-[#e11d48] font-medium shrink-0 mt-1">Select →</span>
+                    <span className="text-xs text-[#e11d48] font-medium shrink-0 mt-1">
+                      {r.has_recent_consultation ? "Follow-up →" : "Select →"}
+                    </span>
                   </button>
                 ))
               )}

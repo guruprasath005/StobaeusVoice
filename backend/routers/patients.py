@@ -56,13 +56,15 @@ class PatientClinicalUpdateRequest(BaseModel):
     blood_group: Optional[str] = None
 
 class PatientSearchResult(BaseModel):
-    patient_id:  str
-    display:     str                        # "Ravi Kumar · 45M · PT-0042"
-    age:         Optional[int]
-    gender_code: Optional[str]
-    conditions:  list
-    medications: list
-    allergies:   list
+    patient_id:             str
+    display:                str                        # "Ravi Kumar · 45M · PT-0042"
+    age:                    Optional[int]
+    gender_code:            Optional[str]
+    conditions:             list
+    medications:            list
+    allergies:              list
+    has_recent_consultation: bool = False
+    last_visit_date:        Optional[str] = None       # ISO date of last approved visit
 
 # ── Routes ────────────────────────────────────────────────────────
 
@@ -145,6 +147,9 @@ def register_patient(req: PatientCreateRequest, db: Session = Depends(get_db), _
 @router.get("/search")
 def search_patients(q: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """Search by name, ABHA ID, or MRN. Returns display-safe results only."""
+    from models import Consultation
+    from datetime import timedelta
+
     results = db.query(Patient, PatientClinical)\
         .join(PatientClinical, Patient.patient_id == PatientClinical.patient_id, isouter=True)\
         .filter(
@@ -154,8 +159,16 @@ def search_patients(q: str, db: Session = Depends(get_db), _: User = Depends(get
             Patient.patient_id.ilike(f"%{q}%")
         ).limit(10).all()
 
-    return [
-        PatientSearchResult(
+    cutoff = datetime.now(timezone.utc) - timedelta(days=180)
+    out = []
+    for p, c in results:
+        prev = db.query(Consultation).filter(
+            Consultation.patient_id == p.patient_id,
+            Consultation.status == "approved",
+            Consultation.started_at >= cutoff,
+        ).order_by(Consultation.started_at.desc()).first()
+
+        out.append(PatientSearchResult(
             patient_id=p.patient_id,
             display=f"{p.full_name} · {c.age if c else '?'}{c.gender_code if c else ''} · {p.patient_id}",
             age=c.age if c else None,
@@ -163,9 +176,10 @@ def search_patients(q: str, db: Session = Depends(get_db), _: User = Depends(get
             conditions=c.conditions if c else [],
             medications=c.medications if c else [],
             allergies=c.allergies if c else [],
-        )
-        for p, c in results
-    ]
+            has_recent_consultation=prev is not None,
+            last_visit_date=prev.started_at.date().isoformat() if prev and prev.started_at else None,
+        ))
+    return out
 
 
 @router.get("/{patient_id}")

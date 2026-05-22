@@ -105,12 +105,77 @@ function BedCard({ bed, selected, onClick }: { bed: BedState; selected: boolean;
   );
 }
 
+// ── Flow Sheet ─────────────────────────────────────────────────────
+
+interface BedLog {
+  id: number;
+  bed_id: string;
+  patient_id: string | null;
+  patient_name: string | null;
+  bp: string | null;
+  hr: number | null;
+  spo2: number | null;
+  temp: string | null;
+  rr: number | null;
+  drips: Drip[];
+  notes: string | null;
+  recorded_at: string | null;
+}
+
+function FlowSheet({ bedId }: { bedId: string }) {
+  const [history, setHistory] = useState<BedLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api.getBedHistory(bedId).then(d => { setHistory(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [bedId]);
+
+  if (loading) return <div className="text-xs text-gray-400 py-8 text-center">Loading…</div>;
+  if (!history.length) return <div className="text-xs text-gray-400 py-8 text-center">No history recorded for {bedId}.</div>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[10px]">
+        <thead>
+          <tr className="border-b border-gray-100">
+            {["Time","BP","HR","SpO₂","Temp","RR","Drips","Notes"].map(h => (
+              <th key={h} className="text-left px-2 py-1.5 text-gray-500 font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {history.map((log, i) => {
+            const spo2Color = log.spo2 != null ? (log.spo2 < 90 ? "#EF4444" : log.spo2 < 95 ? "#F59E0B" : "#10B981") : "#374151";
+            const hrColor = log.hr != null ? (log.hr > 130 || log.hr < 50 ? "#EF4444" : log.hr > 100 || log.hr < 60 ? "#F59E0B" : "#374151") : "#374151";
+            return (
+              <tr key={log.id} className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"}`}>
+                <td className="px-2 py-1.5 font-mono text-gray-600 whitespace-nowrap">
+                  {log.recorded_at ? new Date(log.recorded_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" }) : "—"}
+                </td>
+                <td className="px-2 py-1.5 font-mono font-semibold text-gray-800">{log.bp || "—"}</td>
+                <td className="px-2 py-1.5 font-mono font-semibold" style={{ color: hrColor }}>{log.hr ?? "—"}</td>
+                <td className="px-2 py-1.5 font-mono font-semibold" style={{ color: spo2Color }}>{log.spo2 != null ? `${log.spo2}%` : "—"}</td>
+                <td className="px-2 py-1.5 font-mono text-gray-700">{log.temp || "—"}</td>
+                <td className="px-2 py-1.5 font-mono text-gray-700">{log.rr ?? "—"}</td>
+                <td className="px-2 py-1.5 text-gray-600 max-w-[120px]">
+                  {log.drips?.length ? log.drips.map(d => `${d.name} ${d.rate}${d.unit}`).join(", ") : "—"}
+                </td>
+                <td className="px-2 py-1.5 text-gray-500 max-w-[140px] truncate">{log.notes || "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────
 
 export default function NursePage() {
   const [beds, setBeds] = useState<BedState[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rightTab, setRightTab] = useState<"log" | "flowsheet">("log");
 
   // Log form
   const [patientName, setPatientName] = useState("");
@@ -262,17 +327,33 @@ export default function NursePage() {
         {selected ? (
           <>
             {/* Panel header */}
-            <div className="px-4 py-4 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-              <div className="flex items-center justify-between">
+            <div className="px-4 py-3 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+              <div className="flex items-center justify-between mb-2">
                 <div>
                   <p className="font-hand text-base font-bold text-gray-900">{selected.bed_id}</p>
                   <p className="text-[11px] text-gray-500 mt-0.5">{selected.patient_name || "Unoccupied"}</p>
                 </div>
                 <button onClick={() => setSelectedId(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer text-lg">×</button>
               </div>
+              <div className="flex gap-1">
+                {(["log", "flowsheet"] as const).map(t => (
+                  <button key={t} onClick={() => setRightTab(t)}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition cursor-pointer"
+                    style={rightTab === t ? { background: "#ffe4e6", color: "#9f1239" } : { color: "#6B7280" }}
+                  >
+                    {t === "log" ? "Log Vitals" : "Flow Sheet"}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
+            <div className="flex-1 overflow-auto">
+            {rightTab === "flowsheet" ? (
+              <div className="p-3">
+                <FlowSheet bedId={selected.bed_id} />
+              </div>
+            ) : (
+            <div className="p-4 flex flex-col gap-4">
 
               {/* Voice log */}
               <div className="bg-[#fff1f2] rounded-xl p-3" style={{ border: "1.5px solid #fecdd3" }}>
@@ -410,6 +491,8 @@ export default function NursePage() {
                   {saveMsg && <p className={`text-xs text-center font-medium ${saveMsg === "Saved." ? "text-green-600" : "text-red-600"}`}>{saveMsg}</p>}
                 </div>
               </div>
+            </div>
+            )}
             </div>
           </>
         ) : (

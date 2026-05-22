@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import asc
 from db import get_db
-from models import DischargeSummary, Consultation, Patient, PatientClinical, EchoReport, Prescription, Admission, IpdNote, BedTransfer, BedTier, Bed
+from models import DischargeSummary, Consultation, Patient, PatientClinical, EchoReport, Prescription, Admission, IpdNote, BedTransfer, BedTier, Bed, VoiceBotCall
 from routers.auth import get_current_user, assert_owner, User
 from services.discharge_generation import generate_discharge_summary
 from audit import log_access
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import urllib.parse, uuid
 
 router = APIRouter(prefix="/discharge", tags=["discharge"])
@@ -274,6 +274,23 @@ def finalize_summary(summary_id: str, db: Session = Depends(get_db), current_use
         raise HTTPException(404, "Discharge summary not found")
     assert_owner(ds.doctor_id, current_user)
     ds.status = "final"
+    # Auto-schedule a post-discharge follow-up call if none exists for this patient
+    if ds.patient_id:
+        existing = db.query(VoiceBotCall).filter(
+            VoiceBotCall.patient_id == ds.patient_id,
+            VoiceBotCall.status.in_(["pending", "completed"]),
+        ).first()
+        if not existing:
+            call_id = f"VC-{uuid.uuid4().hex[:8].upper()}"
+            db.add(VoiceBotCall(
+                call_id=call_id,
+                patient_id=ds.patient_id,
+                call_type="post_discharge",
+                status="pending",
+                scheduled_at=datetime.now(timezone.utc) + timedelta(days=3),
+                created_by=current_user.id,
+                created_at=datetime.now(timezone.utc),
+            ))
     db.commit()
     return {"status": "final"}
 

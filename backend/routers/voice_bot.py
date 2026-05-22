@@ -7,9 +7,58 @@ from routers.auth import get_current_user, assert_owner, User
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
-import uuid
+from openai import OpenAI
+from config import settings
+import uuid, json, logging
+
+logger = logging.getLogger(__name__)
+_ai = OpenAI(api_key=settings.openai_api_key)
 
 router = APIRouter(prefix="/voice-bot", tags=["voice_bot"])
+
+def _extract_call_summary(transcript: str) -> dict:
+    """Use GPT-4o to extract structured summary from a call transcript."""
+    prompt = (
+        "You are a cardiac nurse reviewing a post-discharge follow-up call transcript from an Indian hospital.\n"
+        "Extract the following and return ONLY valid JSON, no prose:\n"
+        "{\n"
+        '  "symptom_status": "stable" | "concerning" | "critical",\n'
+        '  "reported_symptoms": ["list of symptoms mentioned"],\n'
+        '  "alerts": ["concerning findings that need clinician attention"],\n'
+        '  "follow_up_needed": true | false,\n'
+        '  "escalation": true | false,\n'
+        '  "notes": "one sentence clinical summary"\n'
+        "}\n\n"
+        "Red flags requiring escalation=true: chest pain, severe breathlessness, syncope, "
+        "fainting, severe leg swelling, rapid palpitations, stroke symptoms.\n\n"
+        f"Transcript:\n{transcript}"
+    )
+    try:
+        resp = _ai.chat.completions.create(
+            model=settings.openai_deployment,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        return json.loads(resp.choices[0].message.content)
+    except Exception as exc:
+        logger.warning("AI call summary extraction failed: %s", exc)
+        text = transcript.lower()
+        red_flags = ["chest pain", "breathless", "dyspnea", "syncope", "fainted", "swelling", "palpitation"]
+        flagged = [f for f in red_flags if f in text]
+        return {
+            "symptom_status": "critical" if flagged else "stable",
+            "reported_symptoms": flagged,
+            "alerts": flagged,
+            "follow_up_needed": bool(flagged),
+            "escalation": bool(flagged),
+            "notes": "Auto-extracted (AI unavailable)",
+        }
+
+
+class CompleteCallRequest(BaseModel):
+    transcript: str
+
 
 class TriggerCallRequest(BaseModel):
     patient_id: str
@@ -76,6 +125,23 @@ def update_call(call_id: str, data: dict,
         call.completed_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/calls/{call_id}/complete")
+def complete_call(call_id: str, req: CompleteCallRequest,
+                  db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Submit transcript after a call; AI extracts structured summary + escalation flag."""
+    call = db.query(VoiceBotCall).filter(VoiceBotCall.call_id == call_id).first()
+    if not call:
+        raise HTTPException(404, "Call not found")
+    assert_owner(call.created_by, current_user)
+    summary = _extract_call_summary(req.transcript)
+    call.transcript = req.transcript
+    call.summary = summary
+    call.status = "completed"
+    call.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True, "summary": summary}
 
 
 @router.delete("/calls/{call_id}")

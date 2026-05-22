@@ -147,6 +147,7 @@ export default function DischargeSummaryPage() {
   const [saved, setSaved] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [sendingWA, setSendingWA] = useState(false);
+  const [exportingFhir, setExportingFhir] = useState(false);
   const [error, setError] = useState("");
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -200,6 +201,24 @@ export default function DischargeSummaryPage() {
       setError("Failed to finalize.");
     } finally {
       setFinalizing(false);
+    }
+  };
+
+  const handleFhirExport = async () => {
+    setExportingFhir(true);
+    try {
+      const bundle = await api.getDischargeFhir(summaryId);
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/fhir+json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `discharge-${summaryId}.fhir.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("FHIR export failed — ensure summary is finalised and backend is running.");
+    } finally {
+      setExportingFhir(false);
     }
   };
 
@@ -266,6 +285,20 @@ export default function DischargeSummaryPage() {
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>
               Print
+            </button>
+            <button
+              onClick={handleFhirExport}
+              disabled={exportingFhir}
+              className="flex items-center gap-1.5 text-xs text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition cursor-pointer disabled:opacity-50"
+              style={{ border: "1.5px solid #d4d4d2" }}
+              title="Download ABDM-compliant FHIR R4 Bundle"
+            >
+              {exportingFhir ? (
+                <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+              )}
+              FHIR R4
             </button>
             {!isFinal && (
               <button

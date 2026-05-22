@@ -219,6 +219,14 @@ function checkInteractions(drugs: DrugItem[]): Interaction[] {
 
 // ── Types ──────────────────────────────────────────────────────────
 
+interface ClinicalAlert {
+  severity: "critical" | "warning" | "info";
+  type: string;
+  title: string;
+  message: string;
+  drugs: string[];
+}
+
 interface DrugItem {
   drug: string;
   dose: string;
@@ -471,6 +479,9 @@ export default function PrescriptionDetailPage() {
   const [waSent, setWaSent] = useState(false);
   const [error, setError] = useState("");
 
+  const [patientConditions, setPatientConditions] = useState<string[]>([]);
+  const [conditionAlerts, setConditionAlerts] = useState<ClinicalAlert[]>([]);
+
   // Dictation state — lives on the right panel.
   const [transcript, setTranscript] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -495,6 +506,12 @@ export default function PrescriptionDetailPage() {
       })) : []);
       setDiagnosis(data.diagnosis || "");
       setNotes(data.notes || "");
+      // Fetch patient conditions for condition-aware alert checking
+      if (data.patient_id && !data.patient_id.startsWith("PT-ANON")) {
+        api.getClinicalContext(data.patient_id).then((ctx: { conditions?: string[] } | null) => {
+          setPatientConditions(ctx?.conditions || []);
+        }).catch(() => {});
+      }
     }).catch(() => setError("Failed to load prescription"))
       .finally(() => setLoading(false));
   }, [rxId]);
@@ -516,6 +533,20 @@ export default function PrescriptionDetailPage() {
   }, [rxId, diagnosis, drugs, notes, locked]);
 
   useEffect(() => { autosave(); }, [drugs, diagnosis, notes, autosave]);
+
+  // Condition-aware alert check (backend only — condition_only=true avoids duplicating frontend drug-drug checks)
+  useEffect(() => {
+    if (drugs.length === 0 || patientConditions.length === 0) {
+      setConditionAlerts([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      api.checkClinicalAlerts(drugs, patientConditions, true)
+        .then((res: { alerts: ClinicalAlert[] }) => setConditionAlerts(res.alerts || []))
+        .catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [drugs, patientConditions]);
 
   // ── Dictation → AI extraction → fill form ──────────────────────
   const generateFromDictation = async () => {
@@ -695,7 +726,26 @@ export default function PrescriptionDetailPage() {
               ))}
             </div>
 
-            {/* Interaction warnings */}
+            {/* Condition-aware patient safety alerts (backend) */}
+            {conditionAlerts.length > 0 && (
+              <div className="px-4 pb-3 flex flex-col gap-2" style={{ borderTop: "1px solid #fca5a5", paddingTop: 12, background: "#FEF2F2" }}>
+                <div className="flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                  <p className="text-[10px] font-bold text-red-700 uppercase tracking-wide">Patient-specific Safety Alerts</p>
+                </div>
+                {conditionAlerts.map((a, i) => (
+                  <div key={i} className="flex gap-2 px-3 py-2.5 rounded-xl" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mt-1.5" />
+                    <div>
+                      <p className="text-xs font-bold text-red-800">{a.title}</p>
+                      <p className="text-[11px] text-red-700 mt-0.5 leading-relaxed">{a.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Drug interaction warnings (frontend, instant) */}
             {interactions.length > 0 && (
               <div className="px-4 pb-3 flex flex-col gap-2" style={{ borderTop: "1px dashed #d4d4d2", paddingTop: 12 }}>
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Drug Interactions</p>

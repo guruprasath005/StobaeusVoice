@@ -14,6 +14,18 @@ interface ClinicalCtx {
   allergies: string[];
 }
 
+interface PreviousConsultation {
+  session_id: string;
+  started_at: string | null;
+  soap_note: {
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+  } | null;
+  icd_codes: { code: string; description: string }[] | null;
+}
+
 // ── Icons ──────────────────────────────────────────────────────────
 
 function Icon({ d, d2, size = 16 }: { d: string; d2?: string; size?: number }) {
@@ -145,6 +157,8 @@ export default function ActiveConsultationPage() {
   const [patientDisplay, setPatientDisplay] = useState<string | null>(null);
   const [clinical, setClinical] = useState<ClinicalCtx | null>(null);
   const [isFollowup, setIsFollowup] = useState(false);
+  const [previousConsultation, setPreviousConsultation] = useState<PreviousConsultation | null>(null);
+  const [prevPanelOpen, setPrevPanelOpen] = useState(true);
 
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -162,6 +176,7 @@ export default function ActiveConsultationPage() {
   useEffect(() => {
     api.getConsultation(sessionId).then(data => {
       if (data.is_followup) setIsFollowup(true);
+      if (data.previous_consultation) setPreviousConsultation(data.previous_consultation);
       if (data.patient_id) {
         setPatientId(data.patient_id);
         setPatientDisplay(data.patient_display || data.patient_id);
@@ -560,6 +575,50 @@ export default function ActiveConsultationPage() {
               )
             )}
           </div>
+
+          {/* Previous visit summary — follow-up only */}
+          {isFollowup && previousConsultation && (
+            <div className="shrink-0" style={{ borderTop: "1px dashed #d4d4d2" }}>
+              <button
+                onClick={() => setPrevPanelOpen(o => !o)}
+                className="w-full flex items-center justify-between px-3 py-2 hover:bg-amber-50 transition cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                  <span className="text-[10px] font-semibold text-amber-700">Previous Visit</span>
+                  {previousConsultation.started_at && (
+                    <span className="text-[9px] font-mono text-amber-500">
+                      {new Date(previousConsultation.started_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                  )}
+                </div>
+                <Icon d={prevPanelOpen ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} size={10} />
+              </button>
+              {prevPanelOpen && previousConsultation.soap_note && (
+                <div className="px-3 pb-3 flex flex-col gap-2 max-h-52 overflow-auto bg-amber-50">
+                  {previousConsultation.soap_note.assessment && (
+                    <div>
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-amber-600 mb-0.5">Assessment</p>
+                      <p className="text-[10px] text-gray-700 leading-relaxed line-clamp-3">{previousConsultation.soap_note.assessment}</p>
+                    </div>
+                  )}
+                  {previousConsultation.soap_note.plan && (
+                    <div>
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-amber-600 mb-0.5">Plan</p>
+                      <p className="text-[10px] text-gray-700 leading-relaxed line-clamp-3">{previousConsultation.soap_note.plan}</p>
+                    </div>
+                  )}
+                  {(previousConsultation.icd_codes || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {(previousConsultation.icd_codes || []).slice(0, 4).map((ic, i) => (
+                        <span key={i} className="text-[9px] font-mono bg-white text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">{ic.code}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* PII firewall notice */}
           <div className="px-3 py-2.5 shrink-0 bg-gray-50" style={{ borderTop: "1px dashed #d4d4d2" }}>

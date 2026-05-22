@@ -1,6 +1,6 @@
 # StobaeusVoice — Progress Tracker
 
-## Status: Dictation + AI Extraction Complete Across All Workflows · IPD Rebuild Next
+## Status: Full clinical spine built · Next: B1 Follow-up OPD + B2 Cath depth + B3 Alerts engine
 
 ---
 
@@ -17,14 +17,14 @@
 
 ### Design
 - [x] Wireframes — all 14 screens designed (open `design/StobaeusVoice Wireframes.html`)
-- [x] Design system defined:
-  - Primary: `#0EA5E9` teal-blue
-  - Success: `#10B981` green
-  - Warning: `#F59E0B` amber
-  - Critical: `#EF4444` red
-  - Font: **Kalam** (handwritten, headings + stat values) + **Inter** (body)
-  - Cards: solid `1.5px #1a1a1a` border, dashed `1px #d4d4d2` internal dividers
-  - Sidebar: 200px, `1.5px solid #1a1a1a` right border
+- [x] Design system defined (post-rebrand):
+  - Primary: `#E11D48` red-pink (rose scale — all branding, buttons, active states)
+  - Success: `#10B981` green (clinical success only)
+  - Warning: `#F59E0B` amber (clinical warning only)
+  - Critical: `#EF4444` red (clinical critical only — severity also via icons/labels, not colour alone)
+  - Font: **Poppins** everywhere (headings, body, IDs/times)
+  - Cards: 12px radius, 1.5px solid border, white background
+  - Sidebar: 200px, always present
 
 ### Auth (Complete)
 - [x] JWT auth — FastAPI + python-jose + bcrypt (no Firebase)
@@ -149,11 +149,12 @@
 - [x] Follow-up detection (180d window) + "Previous Visit" tab on review page
 - [x] Auto-create Prescription record on consultation approve
 
-### 6. Nurse + IPD (PARTIAL — IPD to be rebuilt next, see below)
+### 6. Nurse + IPD (COMPLETE)
 - [x] Nurse station — 12-bed grid, vitals logging form, drip rates, regex vitals parser
 - [x] Voice log per bed — **live Deepgram** transcription populates the voice-text box; existing "Parse & Log" extracts vitals via regex
-- [x] IPD Ward Round basic page — bed grid (driven by Nurse Station occupancy), Status/Assessment/Plan dictation
-- [ ] **Full IPD workflow rebuild** — admission, bed tiers, daily round, bed transfer, discharge linkage (see "Next: IPD Flow Rebuild" below)
+- [x] **Full IPD flow** (commit `7b6cbcb`) — Admission, bed tiers (CCU/HDU/Ward/Private), STEMI fast-track, AI admission + progress notes, bed transfers, discharge-from-admission
+- [x] **Admin IPD** — ward CRUD, bed CRUD, admin configures tiers per hospital
+- [x] Care-team record access — patient records readable by whole care team; mutations stay owner-locked
 
 ### 7. Discharge Summary (COMPLETE)
 - [x] `/dashboard/discharge/[summaryId]` — sections + meds + ICD codes
@@ -188,53 +189,34 @@
 
 ---
 
-## 🛠 Next: IPD Flow Rebuild
+## Build backlog — next items
 
-Current IPD is a stub — it depends on the nurse first occupying a bed, has no admission concept, no bed tiers (CCU/HDU/Ward/Private), no transfer between tiers, and no discharge link. Indian cardiology IPDs actually work like this:
+Full specs in `docs/BUILD_PLAN.md`. Priority order:
 
-```
-ER / OPD → CCU (1:1, ~₹28k/day) → HDU (2:1) → Step-down / Ward (~₹22k/day) → Discharge
-```
+| # | Item | Status | Priority |
+|---|------|--------|----------|
+| B1 | Follow-up OPD mode | Not built — schema exists, need backend endpoint + AI prompt variant + frontend delta-view | HIGH |
+| B2 | Cath lab completeness | Partial — `access_site`, `contrast_volume_ml`, `fluoroscopy_time_min`, `lvedp_mmhg`, `stents[]`, `timi_pre/post` missing from form + AI extraction | HIGH |
+| B3 | Clinical alerts engine | Not built — `services/clinical_alerts.py` doesn't exist; Alerts page needs real drug-interaction rules | HIGH |
+| B4 | ABDM FHIR R4 export | Not built — mandatory for any hospital pilot | HIGH |
+| B5 | Post-discharge voice bot | Partial — placeholder records; no real call engine | MEDIUM |
+| B6 | Nurse Station voice charting | Partial — voice log exists but no structured vitals parse via LLM | MEDIUM |
+| B7 | Appointment bot | Partial — appointments module exists, no bot | MEDIUM |
+| B8 | EMR push adapters | Not built (per-hospital, build on demand) | MEDIUM |
+| B9 | TPA pre-auth & claim packet | Not built | LOWER |
 
-Research summary (May 2026): paper case sheets take 10–12 min today; Digital IPD claims 2–3 min with templates. Nurses spend hours re-transcribing numbers. Apollo Delhi cut STEMI door-to-cath time by half with a paperwork-light direct-to-cath protocol. 66% of providers using AI tools for documentation in 2025. Per-bed cost delta CCU vs ward = ~₹6k/day — doctors *want* to move patients down but the paper trail is the bottleneck.
+Wire tasks:
+- W1 Unified patient timeline (OPD + IPD + echo + Rx + discharge in one view)
+- W2 OPD → IPD continuity (admission pre-loads from OPD SOAP)
+- W3 Consult ↔ diagnostics link
+- W4 Alerts page → real B3 engine
+- W5 Admin dashboard → real aggregates
 
-### Build phases (in priority order)
-
-**Phase 1 — Admit Patient flow (highest ROI, build first)**
-- New `Admission` table: `admission_id, patient_id, bed_id, bed_tier (CCU/HDU/Ward/Private), admitted_at, admission_note (JSON), admitting_doctor_id, icd_codes, status (active/discharged)`
-- `IpdNote` gets `admission_id` foreign key — round notes link to a single admission episode
-- New "+ Admit Patient" button on IPD Ward Round page → modal flow:
-  1. `PatientSearchModal` (reused) — existing / register new / PT-ANON (STEMI fast-track)
-  2. Bed tier picker → specific bed picker (tag existing B01–B12 with tiers; small hospitals keep flat list)
-  3. **Dictation widget** — doctor speaks: chief complaint, HOPI, exam, provisional Dx, admit orders
-  4. **AI extraction** (new `admission_generation.py` service) — GPT-4o extracts: `chief_complaint, hopi, examination, provisional_dx, icd_codes, admit_orders (drugs/monitoring/NPO/access)`
-  5. Review + Approve → patient occupies bed, ready for daily rounds
-- Backend: `POST /ipd/admissions`, `GET /ipd/admissions/{id}`, `POST /ipd/admissions/{id}/generate` (dictation → fields)
-
-**Phase 2 — Daily Progress Round enhancements**
-- When a bed is selected, show admission summary + collapsed timeline of prior progress notes
-- "Generate today's note" — GPT-4o reads latest vitals + prior notes → drafts S/O/A/P
-- Wire existing IPD Ward Round dictation to admission episode
-
-**Phase 3 — Bed Transfer**
-- One-click escalate/step-down: select target tier + bed → records the move with timestamp + one-line reason on patient timeline
-
-**Phase 4 — Discharge from IPD**
-- "Discharge" button on ward-round patient panel
-- Pre-fills existing discharge summary builder from all SOAP notes + admission note + final progress note
-- Auto-creates take-home prescription via existing flow
-- Books follow-up appointment via existing Appointments page
-- Marks bed free; admission status → `discharged`
-
-### Open design questions (decide before Phase 1)
-1. **Bed tiers**: tag the existing 12 beds with a tier each, or expand to distinct CCU/HDU/Ward bed pools? Tagging is much less work and adapts to small hospitals.
-2. **Admission note structure**: full S/O/A/P + provisional Dx + admit orders (richest), or simpler 3-field admission (chief complaint, provisional Dx, admit plan) for V1?
-3. **STEMI fast-track**: separate "STEMI Admit" button that skips straight to PT-ANON + cath lab pre-orders? Or keep that out of V1?
-
-### Out of scope for IPD rebuild
-- Self-hosted LLM / STT (Phase 2 production readiness)
-- ABDM FHIR R4 output (separate compliance workstream)
-- DICOM/PACS integration (separate, deferred per CLAUDE.md until first hospital request)
+Backend refactor Phases 2–5 pending (interleave as foundation):
+- Phase 2: thin routers — extract `schemas/`, move logic to `services/` + `repositories/`
+- Phase 3: frontend design system — `components/ui/`, split `api.ts`, shared types
+- Phase 4: Alembic migrations + integration tests
+- Phase 5: optional module regrouping by workflow domain
 
 ---
 
@@ -254,8 +236,9 @@ Research summary (May 2026): paper case sheets take 10–12 min today; Digital I
 | Note Gen (prod) | Llama 3.1 70B Q4 on Azure A100 | Cost + compliance at scale |
 | Audio storage | **None** | DPDP compliance — audio discarded after transcription |
 | PII to LLM | **Never** | Only age, conditions, meds, allergies sent |
-| Font | Kalam (headings) + Inter (body) | Matches wireframe design system |
-| Card style | 1.5px solid border + dashed dividers | Matches wireframe |
+| Font | **Poppins** everywhere | Post-rebrand — replaces Kalam/Inter |
+| Card style | 12px radius, 1.5px solid border, white bg | Matches current CLAUDE.md design system |
+| Accent colour | **`#E11D48` red-pink** | Post-rebrand (commit 20e3b31) |
 
 ---
 
@@ -290,8 +273,11 @@ npm run dev
 | `CLAUDE.md` | Full project context — read this first |
 | `PROGRESS.md` | This file |
 | `design/StobaeusVoice Wireframes.html` | Open in browser — all 14 screen designs |
-| `backend/main.py` | FastAPI entry point |
-| `backend/database.py` | DB schema — users, patients, consultations |
+| `backend/main.py` | FastAPI entry point (lifespan, config-driven CORS) |
+| `backend/db.py` | engine, SessionLocal, get_db, init_db (replaces old database.py) |
+| `backend/models/` | SQLAlchemy models split by domain (user, patient, consultation, diagnostics, prescription, discharge, ipd, engagement, audit) |
+| `backend/config.py` | Pydantic-settings `Settings` — all secrets/config in one place |
+| `backend/core/errors.py` | Catch-all 500 handler |
 | `backend/routers/auth.py` | JWT login, user CRUD (admin) |
 | `backend/services/transcription.py` | Whisper STT — audio never saved |
 | `backend/services/note_generation.py` | GPT-4o SOAP note — no PII |

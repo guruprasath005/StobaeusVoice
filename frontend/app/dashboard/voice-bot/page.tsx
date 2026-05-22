@@ -56,6 +56,8 @@ export default function VoiceBotPage() {
   const [selected, setSelected] = useState<VoiceCall | null>(null);
   const [triggering, setTriggering] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"calls" | "eligible">("calls");
+  const [transcript, setTranscript] = useState("");
+  const [completing, setCompleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -82,6 +84,22 @@ export default function VoiceBotPage() {
     await api.cancelVoiceBotCall(callId);
     await load();
     if (selected?.call_id === callId) setSelected(null);
+  };
+
+  const completeCall = async (callId: string) => {
+    if (!transcript.trim()) return;
+    setCompleting(true);
+    try {
+      const res = await api.completeVoiceBotCall(callId, transcript.trim());
+      setTranscript("");
+      await load();
+      // Refresh selected with updated data
+      const updated = await api.listVoiceBotCalls();
+      const found = (Array.isArray(updated) ? updated : []).find((c: VoiceCall) => c.call_id === callId);
+      if (found) setSelected(found);
+      return res;
+    } catch { /* silent */ }
+    finally { setCompleting(false); }
   };
 
   const pending = calls.filter(c => c.status === "pending").length;
@@ -253,24 +271,49 @@ export default function VoiceBotPage() {
                 </div>
               )}
 
+              {selected.summary && !!(selected.summary as Record<string, unknown>).escalation && (
+                <div className="bg-[#FEF2F2] rounded-xl p-3" style={{ border: "1.5px solid #EF4444" }}>
+                  <p className="text-[11px] font-semibold text-[#991B1B]">Escalation Required</p>
+                  <p className="text-[10px] text-[#991B1B] mt-0.5">Red-flag symptoms reported — clinician follow-up needed immediately.</p>
+                </div>
+              )}
+
               {!selected.transcript && !selected.summary && (
                 <div className="bg-[#FFFBEB] rounded-xl p-3" style={{ border: "1px dashed #F59E0B" }}>
                   <p className="text-[11px] text-[#92400E]">
                     {selected.status === "pending"
-                      ? "Call is scheduled. Transcript will appear here after the call completes."
+                      ? "Call is scheduled. Enter the transcript below after completing the call."
                       : "No call data available."}
                   </p>
                 </div>
               )}
 
               {selected.status === "pending" && (
-                <button
-                  onClick={() => cancelCall(selected.call_id)}
-                  className="w-full py-2 text-xs font-semibold text-red-500 rounded-lg hover:bg-red-50 transition cursor-pointer"
-                  style={{ border: "1.5px solid #EF4444" }}
-                >
-                  Cancel Call
-                </button>
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Enter Call Transcript</p>
+                  <textarea
+                    value={transcript}
+                    onChange={e => setTranscript(e.target.value)}
+                    placeholder="Paste or type the call transcript here…"
+                    rows={4}
+                    className="w-full px-2.5 py-2 text-xs rounded-lg outline-none bg-white resize-none focus:ring-2 focus:ring-[#e11d48]"
+                    style={{ border: "1.5px solid #d4d4d2" }}
+                  />
+                  <button
+                    onClick={() => completeCall(selected.call_id)}
+                    disabled={completing || !transcript.trim()}
+                    className="w-full py-2 text-xs font-semibold bg-[#e11d48] text-white rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+                  >
+                    {completing ? "Extracting summary…" : "Complete Call & Extract Summary"}
+                  </button>
+                  <button
+                    onClick={() => cancelCall(selected.call_id)}
+                    className="w-full py-1.5 text-xs font-semibold text-red-500 rounded-lg hover:bg-red-50 transition cursor-pointer"
+                    style={{ border: "1.5px solid #EF4444" }}
+                  >
+                    Cancel Call
+                  </button>
+                </div>
               )}
             </div>
           </>

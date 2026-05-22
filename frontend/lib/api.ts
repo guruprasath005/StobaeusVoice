@@ -48,9 +48,27 @@ export const api = {
     return body;
   },
 
-  // Alerts
+  // Workflow alerts (pending approvals)
   getAlerts: () =>
     apiFetch(`${BASE}/consultations/alerts`).then(r => r.json()),
+
+  // Clinical safety alerts
+  checkClinicalAlerts: (
+    meds: { drug: string; dose?: string; freq?: string }[],
+    conditions: string[],
+    conditionOnly = false,
+  ) =>
+    apiFetch(`${BASE}/clinical-alerts/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meds, conditions, condition_only: conditionOnly }),
+    }).then(r => r.json()),
+
+  getActiveClinicalAlerts: () =>
+    apiFetch(`${BASE}/clinical-alerts/active`).then(r => r.json()),
+
+  getPatientClinicalAlerts: (patientId: string) =>
+    apiFetch(`${BASE}/clinical-alerts/patient/${patientId}`).then(r => r.json()),
 
   // Patients
   listPatients: (q?: string, skip = 0, limit = 30) =>
@@ -180,6 +198,34 @@ export const api = {
     const body = await res.json();
     if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
     return body;
+  },
+
+  // PACS / DICOMweb
+  pacsSearch: (params: {
+    wado_base: string; patient_id?: string; accession_number?: string;
+    study_date?: string; modality?: string; username?: string; password?: string;
+  }) =>
+    apiFetch(`${BASE}/pacs/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    }).then(r => r.json()),
+
+  pacsImport: (params: {
+    wado_base: string; study_uid: string; template: string;
+    username?: string; password?: string;
+  }) =>
+    apiFetch(`${BASE}/pacs/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    }).then(r => r.json()),
+
+  pacsUpload: (file: File, template: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("template", template);
+    return apiFetch(`${BASE}/pacs/upload`, { method: "POST", body: form }).then(r => r.json());
   },
 
   // Prescriptions
@@ -378,6 +424,13 @@ export const api = {
   cancelVoiceBotCall: (callId: string) =>
     apiFetch(`${BASE}/voice-bot/calls/${callId}`, { method: "DELETE" }).then(r => r.json()),
 
+  completeVoiceBotCall: (callId: string, transcript: string) =>
+    apiFetch(`${BASE}/voice-bot/calls/${callId}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript }),
+    }).then(r => r.json()),
+
   getEligiblePatients: () =>
     apiFetch(`${BASE}/voice-bot/eligible-patients`).then(r => r.json()),
 
@@ -404,6 +457,13 @@ export const api = {
 
   getAvailableSlots: (date: string, doctorId?: string) =>
     apiFetch(`${BASE}/appointments/slots/${date}${doctorId ? `?doctor_id=${doctorId}` : ""}`).then(r => r.json()),
+
+  appointmentBotChat: (message: string, history: { role: string; content: string }[]) =>
+    apiFetch(`${BASE}/appointments/bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, history }),
+    }).then(r => r.json()),
 
   // Radiology
   listRadiologyReports: (patientId?: string, template?: string) =>
@@ -439,6 +499,13 @@ export const api = {
   // Admin stats
   getAdminStats: () =>
     apiFetch(`${BASE}/consultations/admin-stats`).then(r => r.json()),
+
+  // FHIR R4 export (ABDM)
+  getConsultationFhir: (sessionId: string) =>
+    apiFetch(`${BASE}/fhir/consultations/${sessionId}`).then(r => r.json()),
+
+  getDischargeFhir: (summaryId: string) =>
+    apiFetch(`${BASE}/fhir/discharge/${summaryId}`).then(r => r.json()),
 
   // Discharge summaries
   generateDischargeSummary: (sessionId: string) =>

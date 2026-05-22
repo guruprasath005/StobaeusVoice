@@ -200,6 +200,104 @@ const COMPLICATION_OPTIONS = [
   "Arrhythmia", "Cardiac arrest", "Stroke",
 ];
 
+const STENT_BRANDS = ["Xience (Abbott)", "Resolute Onyx (Medtronic)", "Synergy (BSci)", "BioFreedom (Biosensors)", "Ultimaster (Terumo)", "Supraflex (Sahajanand)", "Coroflex ISAR (B.Braun)", "Other"];
+const STENT_DIAS   = ["2.25 mm", "2.5 mm", "2.75 mm", "3.0 mm", "3.25 mm", "3.5 mm", "3.75 mm", "4.0 mm"];
+const STENT_LENS   = ["8 mm", "12 mm", "14 mm", "16 mm", "18 mm", "20 mm", "23 mm", "24 mm", "28 mm", "32 mm", "38 mm"];
+const STENT_POSTDIL = ["No", "Yes — NC balloon", "Yes — cutting balloon"];
+
+interface StentEntry {
+  vessel: string;
+  brand: string;
+  dia: string;
+  len: string;
+  post_dilation: string;
+}
+
+function parseStents(raw: string | undefined): StentEntry[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function StentsWidget({ raw, onChange }: { raw: string; onChange: (v: string) => void }) {
+  const stents = parseStents(raw);
+
+  const update = (idx: number, field: keyof StentEntry, val: string) => {
+    const next = stents.map((s, i) => i === idx ? { ...s, [field]: val } : s);
+    onChange(JSON.stringify(next));
+  };
+  const add = () => onChange(JSON.stringify([...stents, { vessel: "", brand: "", dia: "", len: "", post_dilation: "" }]));
+  const remove = (idx: number) => onChange(JSON.stringify(stents.filter((_, i) => i !== idx)));
+
+  return (
+    <div className="flex flex-col gap-3">
+      {stents.length === 0 && (
+        <p className="text-[11px] text-gray-400">No stents added — click below to add</p>
+      )}
+      {stents.map((s, idx) => (
+        <div key={idx} className="rounded-xl p-3 flex flex-col gap-2" style={{ border: "1.5px dashed #d4d4d2", background: "#fafafa" }}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[#e11d48]">Stent {idx + 1}</span>
+            <button type="button" onClick={() => remove(idx)} className="text-gray-300 hover:text-red-400 cursor-pointer text-base leading-none">×</button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="col-span-2">
+              <label className={labelCls}>Target Vessel</label>
+              <input
+                value={s.vessel}
+                onChange={e => update(idx, "vessel", e.target.value)}
+                placeholder="e.g. LAD proximal, RCA mid"
+                className={inputCls}
+                style={inputSty}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Brand</label>
+              <select value={s.brand} onChange={e => update(idx, "brand", e.target.value)} className={inputCls + " bg-white"} style={inputSty}>
+                <option value="">—</option>
+                {STENT_BRANDS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Post-Dilation</label>
+              <select value={s.post_dilation} onChange={e => update(idx, "post_dilation", e.target.value)} className={inputCls + " bg-white"} style={inputSty}>
+                <option value="">—</option>
+                {STENT_POSTDIL.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Diameter</label>
+              <select value={s.dia} onChange={e => update(idx, "dia", e.target.value)} className={inputCls + " bg-white"} style={inputSty}>
+                <option value="">—</option>
+                {STENT_DIAS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Length</label>
+              <select value={s.len} onChange={e => update(idx, "len", e.target.value)} className={inputCls + " bg-white"} style={inputSty}>
+                <option value="">—</option>
+                {STENT_LENS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+      ))}
+      {stents.length < 4 && (
+        <button
+          type="button"
+          onClick={add}
+          className="flex items-center gap-1.5 text-xs font-medium text-[#e11d48] hover:text-[#be123c] cursor-pointer w-fit"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add stent
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CompMultiSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const selected = value ? value.split(",").map(s => s.trim()).filter(Boolean) : [];
   const toggle = (opt: string) => {
@@ -316,36 +414,18 @@ function CathForm({ findings, onChange }: {
       {/* Recommendation */}
       <div>
         <SectionHead label="Recommendation" />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Field label="Plan">
             <Select value={f("recommendation")} onChange={chg("recommendation")} options={["Medical management", "PCI — single vessel", "PCI — multi vessel", "CABG", "CABG + valve surgery", "Palliative"]} />
           </Field>
-          {isPCI && (
-            <Field label="Target Vessel">
-              <TextInput value={f("pci_vessel")} onChange={chg("pci_vessel")} placeholder="e.g. LAD proximal" />
-            </Field>
-          )}
         </div>
       </div>
 
       {/* Stent Details — shown when PCI selected */}
       {isPCI && (
         <div>
-          <SectionHead label="Stent Details" />
-          <div className="grid grid-cols-4 gap-3">
-            <Field label="Stent Brand">
-              <Select value={f("stent_brand")} onChange={chg("stent_brand")} options={["Xience (Abbott)", "Resolute Onyx (Medtronic)", "Synergy (BSci)", "BioFreedom (Biosensors)", "Ultimaster (Terumo)", "Supraflex (Sahajanand)", "Coroflex ISAR (B.Braun)", "Other"]} />
-            </Field>
-            <Field label="Stent Diameter">
-              <Select value={f("stent_dia")} onChange={chg("stent_dia")} options={["2.25 mm", "2.5 mm", "2.75 mm", "3.0 mm", "3.25 mm", "3.5 mm", "3.75 mm", "4.0 mm"]} />
-            </Field>
-            <Field label="Stent Length">
-              <Select value={f("stent_len")} onChange={chg("stent_len")} options={["8 mm", "12 mm", "14 mm", "16 mm", "18 mm", "20 mm", "23 mm", "24 mm", "28 mm", "32 mm", "38 mm"]} />
-            </Field>
-            <Field label="Post-Dilation">
-              <Select value={f("post_dilation")} onChange={chg("post_dilation")} options={["No", "Yes — NC balloon", "Yes — cutting balloon"]} />
-            </Field>
-          </div>
+          <SectionHead label={`Stent Details${parseStents(f("stents")).length > 0 ? ` (${parseStents(f("stents")).length})` : ""}`} />
+          <StentsWidget raw={f("stents")} onChange={chg("stents")} />
         </div>
       )}
 
@@ -550,6 +630,238 @@ function DictationWidget({ value, onValue }: { value: string; onValue: (next: st
   );
 }
 
+// ── PACS Import Modal ──────────────────────────────────────────────
+
+const DEFAULT_PACS = "http://31.97.63.234:8042/dicom-web";
+
+interface PACSStudy {
+  study_uid: string;
+  patient_id: string;
+  patient_name: string;
+  study_date: string;
+  study_description: string;
+  accession_number: string;
+  modalities: string;
+  num_series: string;
+}
+
+function PACSImportModal({
+  template,
+  onImport,
+  onClose,
+}: {
+  template: string;
+  onImport: (findings: Record<string, string>, fieldsFound: string[]) => void;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<"pacs" | "upload">("pacs");
+  const [pacsUrl, setPacsUrl] = useState(DEFAULT_PACS);
+  const [username, setUsername] = useState("orthanc");
+  const [password, setPassword] = useState("orthanc");
+  const [patientId, setPatientId] = useState("");
+  const [accession, setAccession] = useState("");
+  const [studies, setStudies] = useState<PACSStudy[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [error, setError] = useState("");
+
+  const search = async () => {
+    if (!patientId.trim() && !accession.trim()) {
+      setError("Enter a Patient ID or Accession Number to search");
+      return;
+    }
+    setSearching(true); setError(""); setStudies([]);
+    try {
+      const res = await api.pacsSearch({
+        wado_base: pacsUrl,
+        patient_id: patientId.trim() || undefined,
+        accession_number: accession.trim() || undefined,
+        username,
+        password,
+      });
+      if (!Array.isArray(res)) throw new Error("Unexpected response from PACS");
+      setStudies(res);
+      if (res.length === 0) setError("No studies found — try a different Patient ID or Accession Number");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "PACS search failed");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const importStudy = async (studyUid: string) => {
+    setImporting(true); setError("");
+    try {
+      const res = await api.pacsImport({ wado_base: pacsUrl, study_uid: studyUid, template, username, password });
+      if (!res.ok) throw new Error("Import failed");
+      if (res.fields_found.length === 0) {
+        setError("Study found but no structured measurements extracted. The DICOM SR may use a different format.");
+        return;
+      }
+      onImport(res.findings, res.fields_found);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const uploadDicom = async () => {
+    if (!uploadFile) { setError("Select a DICOM file first"); return; }
+    setImporting(true); setError("");
+    try {
+      const res = await api.pacsUpload(uploadFile, template);
+      if (res.fields_found.length === 0) {
+        setError("File parsed but no structured measurements found. Ensure this is a DICOM SR file.");
+        return;
+      }
+      onImport(res.findings, res.fields_found);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const FIELD_LABELS: Record<string, string> = {
+    lv_ef: "EF (%)", lvedd: "LVIDd (mm)", lvesd: "LVIDs (mm)",
+    ivsd: "IVSd (mm)", rvsp: "RVSP (mmHg)", la_diam: "LA Diameter (mm)",
+    ao_root: "Aortic Root (mm)", lvedp: "LVEDP (mmHg)",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+      <div className="bg-white rounded-2xl w-full max-w-lg flex flex-col overflow-hidden" style={{ border: "1.5px solid #1a1a1a", maxHeight: "85vh" }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+          <div>
+            <h2 className="font-semibold text-sm text-gray-900">Import from PACS</h2>
+            <p className="text-[10px] text-gray-400 mt-0.5">Auto-fill {template === "echo" ? "echo" : "cath"} measurements from DICOM SR</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-lg leading-none cursor-pointer">×</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+          {(["pacs", "upload"] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => { setTab(t); setError(""); setStudies([]); }}
+              className="flex-1 py-2.5 text-xs font-medium cursor-pointer transition"
+              style={{
+                color: tab === t ? "#e11d48" : "#6b7280",
+                borderBottom: tab === t ? "2px solid #e11d48" : "2px solid transparent",
+              }}
+            >
+              {t === "pacs" ? "Search PACS" : "Upload DICOM File"}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-auto px-5 py-4 flex flex-col gap-4">
+          {tab === "pacs" ? (
+            <>
+              {/* PACS URL */}
+              <div>
+                <label className={labelCls}>PACS DICOMweb URL</label>
+                <input value={pacsUrl} onChange={e => setPacsUrl(e.target.value)} className={inputCls} style={inputSty} placeholder="http://pacs.hospital.local:8042/dicom-web" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Username</label>
+                  <input value={username} onChange={e => setUsername(e.target.value)} className={inputCls} style={inputSty} />
+                </div>
+                <div>
+                  <label className={labelCls}>Password</label>
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} style={inputSty} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Patient ID</label>
+                  <input value={patientId} onChange={e => setPatientId(e.target.value)} placeholder="e.g. PT-0042" className={inputCls} style={inputSty} onKeyDown={e => e.key === "Enter" && search()} />
+                </div>
+                <div>
+                  <label className={labelCls}>Accession Number</label>
+                  <input value={accession} onChange={e => setAccession(e.target.value)} placeholder="e.g. ACC-2024-001" className={inputCls} style={inputSty} onKeyDown={e => e.key === "Enter" && search()} />
+                </div>
+              </div>
+              <button
+                onClick={search}
+                disabled={searching}
+                className="w-full py-2 text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-50 transition"
+                style={{ background: "#e11d48", color: "white" }}
+              >
+                {searching ? "Searching PACS…" : "Search"}
+              </button>
+
+              {/* Results */}
+              {studies.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{studies.length} stud{studies.length === 1 ? "y" : "ies"} found</p>
+                  {studies.map(s => (
+                    <div key={s.study_uid} className="rounded-xl p-3 flex items-start justify-between gap-3" style={{ border: "1.5px solid #d4d4d2" }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-900 truncate">{s.study_description || "No description"}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {s.patient_name && <span className="mr-2">{s.patient_name}</span>}
+                          {s.study_date && <span className="mr-2">{s.study_date}</span>}
+                          {s.modalities && <span className="uppercase">{s.modalities}</span>}
+                        </p>
+                        <p className="text-[9px] text-gray-300 font-mono mt-0.5 truncate">{s.study_uid}</p>
+                      </div>
+                      <button
+                        onClick={() => importStudy(s.study_uid)}
+                        disabled={importing}
+                        className="shrink-0 px-3 py-1.5 text-[11px] font-semibold rounded-lg cursor-pointer disabled:opacity-50 transition"
+                        style={{ background: "#ffe4e6", color: "#9f1239" }}
+                      >
+                        {importing ? "…" : "Import"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div
+                className="rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer"
+                style={{ border: "2px dashed #d4d4d2", minHeight: 140 }}
+                onClick={() => document.getElementById("dicom-file-input")?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setUploadFile(f); }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d4d4d2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                {uploadFile ? (
+                  <p className="text-xs font-semibold text-gray-700">{uploadFile.name}</p>
+                ) : (
+                  <p className="text-xs text-gray-400">Drop DICOM SR file here or click to browse</p>
+                )}
+                <input id="dicom-file-input" type="file" accept=".dcm,.dicom" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setUploadFile(f); }} />
+              </div>
+              <p className="text-[10px] text-gray-400">Accepts .dcm DICOM Structured Report files exported from the echo machine or PACS</p>
+              <button
+                onClick={uploadDicom}
+                disabled={!uploadFile || importing}
+                className="w-full py-2 text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-50 transition"
+                style={{ background: "#e11d48", color: "white" }}
+              >
+                {importing ? "Parsing DICOM…" : "Extract & Import"}
+              </button>
+            </>
+          )}
+
+          {error && <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── TEMPLATE_LABELS ────────────────────────────────────────────────
 
 const TEMPLATE_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -578,6 +890,7 @@ export default function EchoReportPage() {
   const [finalized, setFinalized] = useState(false);
   const [error, setError] = useState("");
   const [showPatientModal, setShowPatientModal] = useState(false);
+  const [showPACSModal, setShowPACSModal] = useState(false);
 
   // Autosave timer ref
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -704,6 +1017,18 @@ export default function EchoReportPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {(data.template === "echo" || data.template === "cath") && !finalized && (
+              <button
+                onClick={() => setShowPACSModal(true)}
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg cursor-pointer transition"
+                style={{ border: "1.5px solid #e11d48", color: "#e11d48" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                Import from PACS
+              </button>
+            )}
             <button
               onClick={save}
               disabled={saving}
@@ -816,6 +1141,24 @@ export default function EchoReportPage() {
           title="Assign patient to this report"
           onSelect={assignPatient}
           onClose={() => setShowPatientModal(false)}
+        />
+      )}
+
+      {showPACSModal && data && (
+        <PACSImportModal
+          template={data.template}
+          onImport={(pacsFindings, fieldsFound) => {
+            setShowPACSModal(false);
+            setFindings(prev => {
+              const merged = { ...prev };
+              for (const [k, v] of Object.entries(pacsFindings)) {
+                if (!merged[k]) merged[k] = v as string;
+              }
+              api.saveEchoReport(reportId, merged as Record<string, unknown>).catch(() => {});
+              return merged;
+            });
+          }}
+          onClose={() => setShowPACSModal(false)}
         />
       )}
     </div>
