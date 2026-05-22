@@ -1006,10 +1006,18 @@ export default function EchoReportPage() {
   useEffect(() => {
     api.getEchoReport(reportId).then(d => {
       setData(d);
-      setFindings(d.findings || {});
+      const f = d.findings || {};
+      setFindings(f);
       setImpression(d.impression || "");
       setIcdCodes(d.icd_codes || []);
       if (d.status === "final") setFinalized(true);
+      // Restore PACS link persisted in findings
+      if (f._pacs_study_url) {
+        setPacsStudyUrl(f._pacs_study_url as string);
+        if (f._pacs_dicomweb_base && f._pacs_study_uid) {
+          setPacsImportMeta({ base: f._pacs_dicomweb_base as string, studyUid: f._pacs_study_uid as string });
+        }
+      }
     }).catch(() => setError("Report not found"))
       .finally(() => setLoading(false));
   }, [reportId]);
@@ -1141,13 +1149,15 @@ export default function EchoReportPage() {
                 View in PACS
               </a>
             )}
-            <button
-              onClick={save}
-              disabled={saving}
-              className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"
-            >
-              {saving ? "Saving…" : "Save Draft"}
-            </button>
+            {!finalized && (
+              <button
+                onClick={save}
+                disabled={saving}
+                className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"
+              >
+                {saving ? "Saving…" : "Save Draft"}
+              </button>
+            )}
             <button
               onClick={finalize}
               disabled={finalizing || finalized}
@@ -1269,13 +1279,18 @@ export default function EchoReportPage() {
           onImport={(pacsFindings, fieldsFound, pacsUrl, studyUid) => {
             setShowPACSModal(false);
             const base = pacsUrl.replace("/dicom-web", "");
-            setPacsStudyUrl(`${base}/ui/app/#/viewer?StudyInstanceUIDs=${studyUid}`);
+            const viewerUrl = `${base}/ui/app/#/viewer?StudyInstanceUIDs=${studyUid}`;
+            setPacsStudyUrl(viewerUrl);
             if (pacsUrl && studyUid) setPacsImportMeta({ base: pacsUrl, studyUid });
             setFindings(prev => {
               const merged = { ...prev };
               for (const [k, v] of Object.entries(pacsFindings)) {
                 if (!merged[k]) merged[k] = v as string;
               }
+              // Persist PACS link so it survives reload
+              merged._pacs_study_url = viewerUrl;
+              merged._pacs_dicomweb_base = pacsUrl;
+              merged._pacs_study_uid = studyUid;
               api.saveEchoReport(reportId, merged as Record<string, unknown>).catch(() => {});
               return merged;
             });
