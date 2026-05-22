@@ -651,7 +651,7 @@ function PACSImportModal({
   onClose,
 }: {
   template: string;
-  onImport: (findings: Record<string, string>, fieldsFound: string[]) => void;
+  onImport: (findings: Record<string, string>, fieldsFound: string[], pacsUrl: string, studyUid: string) => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"pacs" | "upload">("pacs");
@@ -699,7 +699,7 @@ function PACSImportModal({
         setError("Study found but no structured measurements extracted. The DICOM SR may use a different format.");
         return;
       }
-      onImport(res.findings, res.fields_found);
+      onImport(res.findings, res.fields_found, pacsUrl, studyUid);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");
     } finally {
@@ -716,7 +716,7 @@ function PACSImportModal({
         setError("File parsed but no structured measurements found. Ensure this is a DICOM SR file.");
         return;
       }
-      onImport(res.findings, res.fields_found);
+      onImport(res.findings, res.fields_found, "", "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -891,6 +891,7 @@ export default function EchoReportPage() {
   const [error, setError] = useState("");
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showPACSModal, setShowPACSModal] = useState(false);
+  const [pacsStudyUrl, setPacsStudyUrl] = useState<string | null>(null);
 
   // Autosave timer ref
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1029,6 +1030,20 @@ export default function EchoReportPage() {
                 Import from PACS
               </button>
             )}
+            {pacsStudyUrl && (
+              <a
+                href={pacsStudyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition"
+                style={{ border: "1.5px solid #10B981", color: "#10B981" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                View in PACS
+              </a>
+            )}
             <button
               onClick={save}
               disabled={saving}
@@ -1147,8 +1162,11 @@ export default function EchoReportPage() {
       {showPACSModal && data && (
         <PACSImportModal
           template={data.template}
-          onImport={(pacsFindings, fieldsFound) => {
+          onImport={(pacsFindings, fieldsFound, pacsUrl, studyUid) => {
             setShowPACSModal(false);
+            // Build Orthanc study viewer URL
+            const base = pacsUrl.replace("/dicom-web", "");
+            setPacsStudyUrl(`${base}/ui/app/#/study?StudyInstanceUID=${studyUid}`);
             setFindings(prev => {
               const merged = { ...prev };
               for (const [k, v] of Object.entries(pacsFindings)) {

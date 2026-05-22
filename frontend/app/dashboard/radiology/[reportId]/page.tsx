@@ -236,96 +236,141 @@ function FieldRow({ label, value, onChange, disabled }: {
   );
 }
 
-// ── DICOM placeholder ─────────────────────────────────────────────
+// ── DICOM viewer ──────────────────────────────────────────────────
 
-function DicomPlaceholder({ template, patientName }: { template: string; patientName: string | null }) {
+const PACS_BASE = "http://31.97.63.234:8042";
+
+function DicomViewer({ template, patientName, patientId }: {
+  template: string; patientName: string | null; patientId: string | null;
+}) {
   const label = ALL_TEMPLATES.find(t => t.id === template);
-  const shortName = label?.short || "IMG";
-  const [page, setPage] = useState(1);
+  const [studies, setStudies] = useState<{ study_uid: string; study_date: string; study_description: string }[]>([]);
+  const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [manualUid, setManualUid] = useState("");
+  const [showManual, setShowManual] = useState(false);
+
+  // Auto-search when patient is assigned
+  useEffect(() => {
+    if (!patientId || patientId.startsWith("PT-ANON")) return;
+    setSearching(true);
+    fetch(`${PACS_BASE}/dicom-web/studies?PatientID=${encodeURIComponent(patientId)}`, {
+      headers: { "Authorization": "Basic " + btoa("orthanc:orthanc"), "Accept": "application/dicom+json" }
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Record<string, { Value: unknown[] }>[]) => {
+        const list = (Array.isArray(data) ? data : []).map((s) => ({
+          study_uid: String((s["0020000D"]?.Value ?? [""])[0] ?? ""),
+          study_date: String((s["00080020"]?.Value ?? [""])[0] ?? ""),
+          study_description: String((s["00081030"]?.Value ?? ["No description"])[0] ?? "No description"),
+        })).filter(s => s.study_uid);
+        setStudies(list);
+        if (list.length === 1) setSelectedUid(list[0].study_uid);
+      })
+      .catch(() => {})
+      .finally(() => setSearching(false));
+  }, [patientId]);
+
+  const viewerUrl = selectedUid
+    ? `${PACS_BASE}/ui/app/#/viewer?StudyInstanceUIDs=${selectedUid}`
+    : null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 rounded-xl overflow-hidden" style={{ border: "1.5px dashed #6b6b6b" }}>
-      {/* panel header */}
-      <div
-        className="flex items-center justify-between px-3 py-2 bg-white shrink-0"
-        style={{ borderBottom: "1px dashed #d4d4d2" }}
-      >
-        <span className="font-hand text-sm font-bold text-gray-800">
-          Image · {label?.label || template}
-        </span>
-        {patientName && (
-          <span
-            className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-            style={{ border: "1.25px solid #1a1a1a", background: "#fff" }}
-          >
-            {patientName}
-          </span>
-        )}
-      </div>
-
-      {/* DICOM viewer area */}
-      <div
-        className="flex-1 relative flex items-center justify-center"
-        style={{
-          background: "repeating-linear-gradient(135deg, #e8e8e8 0 8px, #f5f5f5 8px 16px)",
-          minHeight: 300,
-        }}
-      >
-        <div
-          className="px-4 py-2 rounded-lg font-mono text-xs text-gray-500"
-          style={{ background: "rgba(255,255,255,0.85)", border: "1px solid #d4d4d2" }}
-        >
-          [ DICOM viewer — {shortName} ]
-        </div>
-
-        {/* Future DICOM note */}
-        <div
-          className="absolute bottom-3 left-3 right-3 px-2.5 py-1.5 rounded-lg text-center"
-          style={{ background: "rgba(14,165,233,0.08)", border: "1px dashed #fecdd3" }}
-        >
-          <p className="text-[9px] text-[#9f1239] font-medium">
-            DICOM/PACS integration coming — images will load automatically via WADO-RS
-          </p>
+      {/* header */}
+      <div className="flex items-center justify-between px-3 py-2 bg-white shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+        <span className="font-hand text-sm font-bold text-gray-800">Image · {label?.label || template}</span>
+        <div className="flex items-center gap-2">
+          {patientName && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ border: "1.25px solid #1a1a1a", background: "#fff" }}>
+              {patientName}
+            </span>
+          )}
+          {selectedUid && (
+            <a href={viewerUrl!} target="_blank" rel="noopener noreferrer"
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full cursor-pointer"
+              style={{ background: "#DCFCE7", color: "#15803D", border: "1px solid #86efac" }}>
+              Open full screen ↗
+            </a>
+          )}
         </div>
       </div>
 
-      {/* viewer toolbar */}
-      <div
-        className="flex items-center justify-between px-3 py-2 bg-white shrink-0"
-        style={{ borderTop: "1px dashed #d4d4d2" }}
-      >
-        <div className="flex items-center gap-1.5">
-          {[
-            { icon: "M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16zM11 8v6M8 11h6", label: "zoom" },
-            { icon: "M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3", label: "pan" },
-            { icon: "M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3", label: "window" },
-          ].map(b => (
-            <button
-              key={b.label}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] text-gray-600 hover:bg-gray-100 transition cursor-pointer"
-              style={{ border: "1.25px solid #1a1a1a" }}
-            >
-              <Icon d={b.icon} size={10} />
-              {b.label}
+      {/* study picker — shown when multiple studies */}
+      {studies.length > 1 && (
+        <div className="px-3 py-2 flex gap-2 flex-wrap bg-gray-50 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
+          {studies.map(s => (
+            <button key={s.study_uid} onClick={() => setSelectedUid(s.study_uid)}
+              className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition font-medium"
+              style={{
+                background: selectedUid === s.study_uid ? "#e11d48" : "#f3f4f6",
+                color: selectedUid === s.study_uid ? "white" : "#374151",
+                border: "1px solid " + (selectedUid === s.study_uid ? "#be123c" : "#d1d5db"),
+              }}>
+              {s.study_description || s.study_date}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:bg-gray-100 cursor-pointer text-xs"
-          >‹</button>
-          <span
-            className="text-[10px] font-mono px-2 py-0.5 rounded"
-            style={{ border: "1.25px solid #1a1a1a" }}
-          >
-            {page}/2
-          </span>
-          <button
-            onClick={() => setPage(p => Math.min(2, p + 1))}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:bg-gray-100 cursor-pointer text-xs"
-          >›</button>
-        </div>
+      )}
+
+      {/* viewer area */}
+      <div className="flex-1 relative" style={{ minHeight: 300, background: "#111" }}>
+        {viewerUrl ? (
+          <iframe
+            src={viewerUrl}
+            className="absolute inset-0 w-full h-full border-0"
+            title="DICOM Viewer"
+            allow="fullscreen"
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            {searching ? (
+              <div className="flex items-center gap-2 text-gray-400 text-xs">
+                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                Searching PACS…
+              </div>
+            ) : studies.length === 0 && patientId ? (
+              <div className="flex flex-col items-center gap-2 text-center px-6">
+                <p className="text-gray-400 text-xs">No studies found in PACS for this patient</p>
+                <button onClick={() => setShowManual(v => !v)}
+                  className="text-[10px] text-[#e11d48] hover:underline cursor-pointer">
+                  Enter Study UID manually
+                </button>
+                {showManual && (
+                  <div className="flex gap-2 mt-1">
+                    <input value={manualUid} onChange={e => setManualUid(e.target.value)}
+                      placeholder="1.2.840..."
+                      className="text-[10px] px-2 py-1 rounded bg-gray-800 text-white border border-gray-600 w-48 outline-none" />
+                    <button onClick={() => { if (manualUid.trim()) setSelectedUid(manualUid.trim()); }}
+                      className="text-[10px] px-2 py-1 rounded bg-[#e11d48] text-white cursor-pointer">
+                      Load
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-center px-6">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+                </svg>
+                <p className="text-gray-500 text-xs">Assign a patient to load DICOM images from PACS</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 bg-white shrink-0" style={{ borderTop: "1px dashed #d4d4d2" }}>
+        <p className="text-[9px] text-gray-400">
+          {selectedUid ? `Study: ${selectedUid.slice(-12)}…` : "No study loaded"}
+        </p>
+        {selectedUid && (
+          <a href={`${PACS_BASE}/ui/app/#/study?StudyInstanceUID=${selectedUid}`} target="_blank" rel="noopener noreferrer"
+            className="text-[9px] text-[#e11d48] hover:underline cursor-pointer">
+            Open in Orthanc Explorer ↗
+          </a>
+        )}
       </div>
     </div>
   );
@@ -543,9 +588,10 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
           className="flex flex-col p-3 shrink-0"
           style={{ width: 360, borderRight: "1px dashed #d4d4d2" }}
         >
-          <DicomPlaceholder
+          <DicomViewer
             template={report.template}
             patientName={report.patient_name}
+            patientId={report.patient_id}
           />
         </div>
 
