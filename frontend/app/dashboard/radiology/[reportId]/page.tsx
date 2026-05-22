@@ -249,6 +249,34 @@ function DicomViewer({ template, patientName, patientId }: {
   const [searching, setSearching] = useState(false);
   const [manualUid, setManualUid] = useState("");
   const [showManual, setShowManual] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDicomUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !patientId) return;
+    setUploading(true);
+    setUploadError("");
+    try {
+      const form = new FormData();
+      form.append("patient_id", patientId);
+      form.append("file", file);
+      const res = await fetch("/api/pacs/push", { method: "POST", body: form,
+        headers: { Authorization: `Bearer ${localStorage.getItem("sv_token") || ""}` } });
+      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      const data = await res.json();
+      if (data.study_uid) {
+        setStudies([{ study_uid: data.study_uid, study_date: "", study_description: "Uploaded" }]);
+        setSelectedUid(data.study_uid);
+      }
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   // Auto-search via backend proxy (avoids CORS)
   useEffect(() => {
@@ -334,8 +362,18 @@ function DicomViewer({ template, patientName, patientId }: {
             ) : studies.length === 0 && patientId ? (
               <div className="flex flex-col items-center gap-2 text-center px-6">
                 <p className="text-gray-400 text-xs">No studies found in PACS for this patient</p>
+                <input ref={fileInputRef} type="file" accept=".dcm,application/dicom"
+                  className="hidden" onChange={handleDicomUpload} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="text-[10px] font-medium px-3 py-1 rounded-full cursor-pointer"
+                  style={{ background: "#e11d48", color: "white", opacity: uploading ? 0.6 : 1 }}>
+                  {uploading ? "Uploading…" : "Upload .dcm file"}
+                </button>
+                {uploadError && <p className="text-red-400 text-[9px]">{uploadError}</p>}
                 <button onClick={() => setShowManual(v => !v)}
-                  className="text-[10px] text-[#e11d48] hover:underline cursor-pointer">
+                  className="text-[10px] text-gray-500 hover:underline cursor-pointer">
                   Enter Study UID manually
                 </button>
                 {showManual && (

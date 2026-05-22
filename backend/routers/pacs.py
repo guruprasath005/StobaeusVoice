@@ -7,7 +7,10 @@ import httpx
 import pydicom
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from db import get_db
+from models.patient import Patient
 from routers.auth import User, get_current_user
 
 logger = logging.getLogger(__name__)
@@ -251,4 +254,75 @@ async def pacs_upload(
         "ok": True,
         "findings": findings,
         "fields_found": list(findings.keys()),
+    }
+
+
+@router.post("/push")
+async def pacs_push(
+    patient_id: str = Form(...),
+    orthanc_base: str = Form("http://31.97.63.234:8042"),
+    username: str = Form("orthanc"),
+    password: str = Form("orthanc"),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """
+    Receive a DICOM file, patch PatientID/PatientName to match our patient record,
+    then push to Orthanc. This ensures QIDO-RS searches by PT-XXXXX always work.
+    """
+    # Look up patient to get canonical name/dob/sex
+    patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
+    if not patient:
+        raise HTTPException(404, f"Patient {patient_id} not found")
+
+    data = await file.read()
+    try:
+        ds = pydicom.dcmread(io.BytesIO(data), force=True)
+    except Exception as exc:
+        raise HTTPException(422, f"Invalid DICOM file: {exc}")
+
+    # Patch patient identity
+    ds.PatientID   = patient.patient_id
+    ds.PatientName = patient.full_name.replace(" ", "^")
+    if patient.dob:
+        ds.PatientBirthDate = patient.dob.replace("-", "")
+    if patient.gender:
+        ds.PatientSex = patient.gender[0].upper()  # M/F
+
+    # Fresh UIDs so it's a distinct study
+    from pydicom.uid import generate_uid
+    ds.StudyInstanceUID  = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.SOPInstanceUID    = generate_uid()
+    if hasattr(ds, "file_meta") and ds.file_meta:
+        ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
+
+    buf = io.BytesIO()
+    pydicom.dcmwrite(buf, ds)
+
+    try:
+        resp = httpx.post(
+            f"{orthanc_base.rstrip('/')}/instances",
+            content=buf.getvalue(),
+            headers={"Content-Type": "application/dicom"},
+            auth=(username, password),
+            timeout=30,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, f"Could not reach Orthanc: {exc}")
+
+    if resp.status_code not in (200, 409):
+        raise HTTPException(502, f"Orthanc upload failed ({resp.status_code}): {resp.text[:200]}")
+
+    result = resp.json()
+    study_uid = str(ds.StudyInstanceUID)
+    return {
+        "ok": True,
+        "orthanc_instance_id": result.get("ID"),
+        "orthanc_study_id": result.get("ParentStudy"),
+        "study_uid": study_uid,
+        "patient_id": patient.patient_id,
+        "patient_name": patient.full_name,
+        "viewer_url": f"{orthanc_base}/ui/app/#/viewer?StudyInstanceUIDs={study_uid}",
     }
