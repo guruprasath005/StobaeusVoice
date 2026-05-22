@@ -1004,19 +1004,40 @@ export default function EchoReportPage() {
   };
 
   useEffect(() => {
-    api.getEchoReport(reportId).then(d => {
+    api.getEchoReport(reportId).then(async d => {
       setData(d);
       const f = d.findings || {};
       setFindings(f);
       setImpression(d.impression || "");
       setIcdCodes(d.icd_codes || []);
       if (d.status === "final") setFinalized(true);
-      // Restore PACS link persisted in findings
+
+      // Restore persisted PACS link
       if (f._pacs_study_url) {
         setPacsStudyUrl(f._pacs_study_url as string);
         if (f._pacs_dicomweb_base && f._pacs_study_uid) {
           setPacsImportMeta({ base: f._pacs_dicomweb_base as string, studyUid: f._pacs_study_uid as string });
         }
+      } else if (d.patient_id) {
+        // Auto-search PACS by patient ID to build View in PACS link
+        try {
+          const pacsBase = DEFAULT_PACS;
+          const resp = await fetch(
+            `${pacsBase}/studies?PatientID=${encodeURIComponent(d.patient_id)}`,
+            { headers: { Authorization: "Basic " + btoa("orthanc:orthanc"), Accept: "application/dicom+json" } },
+          );
+          if (resp.ok) {
+            const studies = await resp.json();
+            if (Array.isArray(studies) && studies.length > 0) {
+              const uid = String((studies[0]["0020000D"]?.Value ?? [""])[0] ?? "");
+              if (uid) {
+                const base = pacsBase.replace("/dicom-web", "");
+                setPacsStudyUrl(`${base}/ui/app/#/viewer?StudyInstanceUIDs=${uid}`);
+                setPacsImportMeta({ base: pacsBase, studyUid: uid });
+              }
+            }
+          }
+        } catch { /* PACS not reachable — silently skip */ }
       }
     }).catch(() => setError("Report not found"))
       .finally(() => setLoading(false));
