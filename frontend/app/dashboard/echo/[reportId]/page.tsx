@@ -1269,7 +1269,7 @@ export default function EchoReportPage() {
           onImport={(pacsFindings, fieldsFound, pacsUrl, studyUid) => {
             setShowPACSModal(false);
             const base = pacsUrl.replace("/dicom-web", "");
-            setPacsStudyUrl(`${base}/ui/app/#/study?StudyInstanceUID=${studyUid}`);
+            setPacsStudyUrl(`${base}/ui/app/#/viewer?StudyInstanceUIDs=${studyUid}`);
             if (pacsUrl && studyUid) setPacsImportMeta({ base: pacsUrl, studyUid });
             setFindings(prev => {
               const merged = { ...prev };
