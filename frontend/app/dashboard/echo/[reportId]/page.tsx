@@ -108,6 +108,12 @@ function EchoForm({ findings, onChange }: {
           <Field label="LVESD">
             <TextInput value={f("lvesd")} onChange={chg("lvesd")} placeholder="e.g. 32" unit="mm" />
           </Field>
+          <Field label="IVSd">
+            <TextInput value={f("ivsd")} onChange={chg("ivsd")} placeholder="e.g. 10" unit="mm" />
+          </Field>
+          <Field label="Posterior Wall">
+            <TextInput value={f("pw")} onChange={chg("pw")} placeholder="e.g. 10" unit="mm" />
+          </Field>
           <div className="col-span-2">
             <Field label="Wall Motion Abnormality (RWMA)">
               <textarea
@@ -170,12 +176,28 @@ function EchoForm({ findings, onChange }: {
         </div>
       </div>
 
+      {/* Aorta */}
+      <div>
+        <SectionHead label="Aorta" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Aortic Root">
+            <TextInput value={f("ao_root")} onChange={chg("ao_root")} placeholder="e.g. 34" unit="mm" />
+          </Field>
+          <Field label="Ascending Aorta">
+            <TextInput value={f("asc_aorta")} onChange={chg("asc_aorta")} placeholder="e.g. 36" unit="mm" />
+          </Field>
+        </div>
+      </div>
+
       {/* Atria + Pericardium */}
       <div>
         <SectionHead label="Atria & Pericardium" />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Left Atrium">
+          <Field label="Left Atrium (size)">
             <Select value={f("la_size")} onChange={chg("la_size")} options={["Normal", "Mildly dilated", "Moderately dilated", "Severely dilated"]} />
+          </Field>
+          <Field label="LA Diameter">
+            <TextInput value={f("la_diam")} onChange={chg("la_diam")} placeholder="e.g. 38" unit="mm" />
           </Field>
           <Field label="Right Atrium">
             <Select value={f("ra_size")} onChange={chg("ra_size")} options={["Normal", "Mildly dilated", "Moderately dilated", "Severely dilated"]} />
@@ -630,6 +652,80 @@ function DictationWidget({ value, onValue }: { value: string; onValue: (next: st
   );
 }
 
+// ── Echo US Image Viewer ───────────────────────────────────────────
+
+function EchoImageViewer({ dicomWebBase, studyUid }: { dicomWebBase: string; studyUid: string }) {
+  const [frames, setFrames] = useState<{ seriesDesc: string; url: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!dicomWebBase || !studyUid) return;
+    const auth = "Basic " + btoa("orthanc:orthanc");
+
+    fetch(`${dicomWebBase}/studies/${studyUid}/series`, {
+      headers: { Authorization: auth, Accept: "application/dicom+json" },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(async (seriesList: Record<string, { Value: unknown[] }>[]) => {
+        const collected: { seriesDesc: string; url: string }[] = [];
+        for (const s of seriesList) {
+          const modality = String((s["00080060"]?.Value ?? [""])[0] ?? "");
+          if (modality !== "US") continue;
+          const seriesUid = String((s["0020000E"]?.Value ?? [""])[0] ?? "");
+          const desc = String((s["0008103E"]?.Value ?? ["Echo sequence"])[0] ?? "Echo sequence");
+          if (!seriesUid) continue;
+
+          const instResp = await fetch(
+            `${dicomWebBase}/studies/${studyUid}/series/${seriesUid}/instances`,
+            { headers: { Authorization: auth, Accept: "application/dicom+json" } },
+          );
+          if (!instResp.ok) continue;
+          const instances: Record<string, { Value: unknown[] }>[] = await instResp.json();
+          if (!instances.length) continue;
+          const sopUid = String((instances[0]["00080018"]?.Value ?? [""])[0] ?? "");
+          if (!sopUid) continue;
+
+          collected.push({
+            seriesDesc: desc,
+            url: `${dicomWebBase}/studies/${studyUid}/series/${seriesUid}/instances/${sopUid}/rendered`,
+          });
+          if (collected.length >= 4) break;
+        }
+        setFrames(collected);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [dicomWebBase, studyUid]);
+
+  if (loading) return (
+    <div className="flex items-center gap-2 text-xs text-gray-400 py-3">
+      <div className="w-3 h-3 border-2 border-gray-300 border-t-[#e11d48] rounded-full animate-spin" />
+      Loading echo images from PACS…
+    </div>
+  );
+  if (!frames.length) return null;
+
+  return (
+    <div className="mt-4">
+      <SectionHead label="Echo Images (from PACS)" />
+      <div className="flex gap-3 flex-wrap mt-2">
+        {frames.map((f, i) => (
+          <div key={i} className="flex flex-col gap-1">
+            <span className="text-[10px] text-gray-500 font-medium">{f.seriesDesc}</span>
+            <img
+              src={f.url + "?accept=image/jpeg"}
+              alt={f.seriesDesc}
+              className="rounded-lg object-cover"
+              style={{ width: 180, height: 140, border: "1.5px solid #d4d4d2", background: "#111" }}
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── PACS Import Modal ──────────────────────────────────────────────
 
 const DEFAULT_PACS = "http://31.97.63.234:8042/dicom-web";
@@ -892,6 +988,7 @@ export default function EchoReportPage() {
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showPACSModal, setShowPACSModal] = useState(false);
   const [pacsStudyUrl, setPacsStudyUrl] = useState<string | null>(null);
+  const [pacsImportMeta, setPacsImportMeta] = useState<{ base: string; studyUid: string } | null>(null);
 
   // Autosave timer ref
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1067,7 +1164,14 @@ export default function EchoReportPage() {
         {error && <div className="mx-5 mt-4 text-xs text-red-600 bg-red-50 rounded-lg px-4 py-2">{error}</div>}
 
         <div className="p-5">
-          {data.template === "echo" && <EchoForm findings={findings} onChange={updateFinding} />}
+          {data.template === "echo" && (
+            <>
+              <EchoForm findings={findings} onChange={updateFinding} />
+              {pacsImportMeta && (
+                <EchoImageViewer dicomWebBase={pacsImportMeta.base} studyUid={pacsImportMeta.studyUid} />
+              )}
+            </>
+          )}
           {data.template === "cath" && <CathForm findings={findings} onChange={updateFinding} />}
           {data.template === "stress_test" && <StressTestForm findings={findings} onChange={updateFinding} />}
           {data.template === "holter" && <HolterForm findings={findings} onChange={updateFinding} />}
@@ -1164,9 +1268,9 @@ export default function EchoReportPage() {
           template={data.template}
           onImport={(pacsFindings, fieldsFound, pacsUrl, studyUid) => {
             setShowPACSModal(false);
-            // Build Orthanc study viewer URL
             const base = pacsUrl.replace("/dicom-web", "");
             setPacsStudyUrl(`${base}/ui/app/#/study?StudyInstanceUID=${studyUid}`);
+            if (pacsUrl && studyUid) setPacsImportMeta({ base: pacsUrl, studyUid });
             setFindings(prev => {
               const merged = { ...prev };
               for (const [k, v] of Object.entries(pacsFindings)) {
