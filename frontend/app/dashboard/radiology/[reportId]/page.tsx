@@ -244,10 +244,37 @@ const PACS_DICOMWEB = `${PACS_BASE}/dicom-web`;
 type Instance = { series_uid: string; sop_uid: string; modality: string; instance_number: number };
 type Study    = { study_uid: string; study_date: string; study_description: string };
 
+// Fetches a DICOM frame with auth header and returns a blob URL
+function useBlobFrame(inst: Instance | null, studyUid: string): string | null {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!inst) return;
+    let cancelled = false;
+    const prev = blobUrl;
+    const token = localStorage.getItem("sv_token") || "";
+    const params = new URLSearchParams({
+      wado_base: PACS_DICOMWEB, study_uid: studyUid,
+      series_uid: inst.series_uid, sop_uid: inst.sop_uid,
+      username: "orthanc", password: "orthanc",
+    });
+    fetch(`/api/pacs/frame?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => { if (!r.ok) throw new Error("frame error"); return r.blob(); })
+      .then(blob => { if (!cancelled) setBlobUrl(URL.createObjectURL(blob)); })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (prev) URL.revokeObjectURL(prev);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inst?.sop_uid, studyUid]);
+  return blobUrl;
+}
+
 function DicomImageGrid({ studyUid }: { studyUid: string }) {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading]     = useState(true);
   const [selected, setSelected]   = useState<Instance | null>(null);
+  const mainBlobUrl = useBlobFrame(selected, studyUid);
 
   useEffect(() => {
     setLoading(true);
@@ -267,16 +294,6 @@ function DicomImageGrid({ studyUid }: { studyUid: string }) {
       .finally(() => setLoading(false));
   }, [studyUid]);
 
-  const frameUrl = (inst: Instance) => {
-    const params = new URLSearchParams({
-      wado_base: PACS_DICOMWEB, study_uid: studyUid,
-      series_uid: inst.series_uid, sop_uid: inst.sop_uid,
-      username: "orthanc", password: "orthanc",
-    });
-    const token = typeof window !== "undefined" ? localStorage.getItem("sv_token") || "" : "";
-    return `/api/pacs/frame?${params}&_t=${token}`;
-  };
-
   if (loading) return (
     <div className="flex-1 flex items-center justify-center bg-black">
       <div className="flex items-center gap-2 text-gray-400 text-xs">
@@ -295,16 +312,17 @@ function DicomImageGrid({ studyUid }: { studyUid: string }) {
   return (
     <div className="flex flex-1 min-h-0 bg-black">
       {/* main image */}
-      <div className="flex-1 flex items-center justify-center p-2 relative">
-        {selected && (
+      <div className="flex-1 flex items-center justify-center p-2">
+        {mainBlobUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={selected.sop_uid}
-            src={frameUrl(selected)}
-            alt={`Instance ${selected.instance_number}`}
+            key={selected?.sop_uid}
+            src={mainBlobUrl}
+            alt="DICOM"
             className="max-w-full max-h-full object-contain"
-            style={{ imageRendering: "pixelated" }}
           />
+        ) : (
+          <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
         )}
       </div>
       {/* thumbnail strip — only shown when multiple instances */}
@@ -312,10 +330,9 @@ function DicomImageGrid({ studyUid }: { studyUid: string }) {
         <div className="w-16 flex flex-col gap-1 p-1 overflow-y-auto bg-gray-950">
           {instances.map(inst => (
             <button key={inst.sop_uid} onClick={() => setSelected(inst)}
-              className="w-full aspect-square rounded overflow-hidden shrink-0 cursor-pointer"
+              className="w-full aspect-square rounded overflow-hidden shrink-0 cursor-pointer flex items-center justify-center bg-gray-800"
               style={{ border: selected?.sop_uid === inst.sop_uid ? "2px solid #e11d48" : "2px solid transparent" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={frameUrl(inst)} alt="" className="w-full h-full object-cover" style={{ imageRendering: "pixelated" }} />
+              <span className="text-[8px] text-gray-400">{inst.instance_number}</span>
             </button>
           ))}
         </div>
