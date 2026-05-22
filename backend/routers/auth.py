@@ -6,19 +6,20 @@ from typing import Optional
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 import bcrypt
-from database import get_db, User, AccessLog
-import os
+from db import get_db
+from models import User, AccessLog
+from config import settings
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-SECRET_KEY = os.getenv("JWT_SECRET")
+SECRET_KEY = settings.jwt_secret
 if not SECRET_KEY:
     import sys
     print("FATAL: JWT_SECRET environment variable is not set. Refusing to start.", file=sys.stderr)
     sys.exit(1)
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours
+ALGORITHM = settings.jwt_algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 

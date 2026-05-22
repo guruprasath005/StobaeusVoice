@@ -7,9 +7,9 @@ text is returned essentially unchanged.
 """
 from openai import OpenAI, APIError
 from fastapi import HTTPException
-import os
+from config import settings
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key)
 
 _SYSTEM_PROMPT = (
     "You translate a doctor's clinical dictation into fluent, professional English. "

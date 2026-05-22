@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
-from database import get_db, Appointment, Patient, User as DBUser
+from db import get_db
+from models import Appointment, Patient, User as DBUser
 from routers.auth import get_current_user, User
 from pydantic import BaseModel
 from typing import Optional

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-from database import get_db, Consultation, Patient, PatientClinical, Prescription, DischargeSummary
+from db import get_db
+from models import Consultation, Patient, PatientClinical, Prescription, DischargeSummary
 from routers.auth import get_current_user, require_admin, assert_owner, User
 from services.transcription import transcribe_audio
 from services.note_generation import generate_soap_note
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/consultations", tags=["consultations"])
 @router.get("/alerts")
 def get_alerts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Pending consultations needing approval + echo reports needing impression — current doctor only."""
-    from database import EchoReport
+    from models import EchoReport
 
     pending_rows = db.query(Consultation, Patient)\
         .outerjoin(Patient, Consultation.patient_id == Patient.patient_id)\
@@ -137,7 +138,7 @@ def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(
 @router.get("/admin-stats")
 def admin_stats(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     """System-wide stats for admin dashboard. Admin only."""
-    from database import User as DBUser, Prescription, EchoReport, DischargeSummary
+    from models import User as DBUser, Prescription, EchoReport, DischargeSummary
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 

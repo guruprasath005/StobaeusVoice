@@ -1,40 +1,72 @@
+"""StobaeusVoice API — application entry point."""
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-import os
-from database import init_db
-from routers import patients, consultations, auth, echo, prescriptions, discharge, nurse, ipd, voice_bot, appointments, radiology, streaming, admin_ipd
 
-load_dotenv(override=True)  # .env is authoritative — beat any stale shell vars
+from config import settings
+from core.errors import register_exception_handlers
+from db import init_db
+from routers import (
+    admin_ipd,
+    appointments,
+    auth,
+    consultations,
+    discharge,
+    echo,
+    ipd,
+    nurse,
+    patients,
+    prescriptions,
+    radiology,
+    streaming,
+    voice_bot,
+)
 
-app = FastAPI(title="StobaeusVoice API", version="0.1.0")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
-_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Run schema bootstrap on startup."""
+    init_db()
+    yield
+
+
+app = FastAPI(title="StobaeusVoice API", version="0.1.0", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(patients.router)
-app.include_router(consultations.router)
-app.include_router(echo.router)
-app.include_router(prescriptions.router)
-app.include_router(discharge.router)
-app.include_router(nurse.router)
-app.include_router(ipd.router)
-app.include_router(admin_ipd.router)
-app.include_router(voice_bot.router)
-app.include_router(appointments.router)
-app.include_router(radiology.router)
-app.include_router(streaming.router)
+register_exception_handlers(app)
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
+# Routers — auth first, then clinical workflow, then engagement/streaming.
+for module in (
+    auth,
+    patients,
+    consultations,
+    echo,
+    prescriptions,
+    discharge,
+    nurse,
+    ipd,
+    admin_ipd,
+    voice_bot,
+    appointments,
+    radiology,
+    streaming,
+):
+    app.include_router(module.router)
+
 
 @app.get("/health")
 def health():

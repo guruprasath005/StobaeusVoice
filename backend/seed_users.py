@@ -5,7 +5,8 @@ Seed the cardiac care team — run once after seed_admin.py:
 Creates the clinical staff an Admin would normally add via /auth/users/create.
 All accounts use the same temporary password — change after first login.
 """
-from database import SessionLocal, User, init_db
+from db import SessionLocal, init_db
+from models import User
 from routers.auth import hash_password
 import uuid
 

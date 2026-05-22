@@ -6,7 +6,8 @@ Mirrors the /patients/register endpoint: assigns a PT-XXXXXX id, derives age
 from dob, and writes both the PII row (patients) and the LLM-safe clinical
 row (patient_clinical). Idempotent on ABHA ID — re-running skips duplicates.
 """
-from database import SessionLocal, Patient, PatientClinical, init_db
+from db import SessionLocal, init_db
+from models import Patient, PatientClinical
 from datetime import date, datetime, timezone
 import uuid
 

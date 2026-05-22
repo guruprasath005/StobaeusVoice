@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-from database import get_db, EchoReport, Patient, PatientClinical
+from db import get_db
+from models import EchoReport, Patient, PatientClinical
 from routers.auth import get_current_user, assert_owner, User
 from services.echo_generation import generate_echo_report
 from services.transcription import transcribe_audio

@@ -16,9 +16,11 @@ No patient PII (name/phone/ABHA/address) is ever sent to the LLM.
 """
 from openai import OpenAI, APIError
 from fastapi import HTTPException
-import os, json
+import json
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from config import settings
+
+client = OpenAI(api_key=settings.openai_api_key)
 
 # ──────────────────────────────────────────────────────────────────────
 # Field schemas — must match the dropdown options in

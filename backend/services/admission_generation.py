@@ -1,10 +1,12 @@
 from openai import OpenAI, APIError
 from fastapi import HTTPException
-import os, json
+import json
+
+from config import settings
 
 from services.note_generation import build_patient_context
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key)
 
 SYSTEM_PROMPT_STANDARD = """You are a cardiology admission documentation assistant for Indian hospitals.
 Generate a structured IPD admission note from the doctor's dictation.

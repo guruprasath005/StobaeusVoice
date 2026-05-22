@@ -11,7 +11,8 @@ from pydantic import BaseModel
 from typing import Optional
 import uuid
 
-from database import get_db, Ward, BedTier, Bed, Admission
+from db import get_db
+from models import Ward, BedTier, Bed, Admission
 from routers.auth import require_admin, User
 
 router = APIRouter(prefix="/admin/ipd", tags=["admin-ipd"])

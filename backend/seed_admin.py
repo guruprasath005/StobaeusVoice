@@ -2,7 +2,8 @@
 Run once to create the first admin user:
   python seed_admin.py
 """
-from database import SessionLocal, User, init_db
+from db import SessionLocal, init_db
+from models import User
 from routers.auth import hash_password
 import uuid
 

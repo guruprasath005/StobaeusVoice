@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import asc
-from database import get_db, DischargeSummary, Consultation, Patient, PatientClinical, EchoReport, Prescription, Admission, IpdNote, BedTransfer, BedTier, Bed
+from db import get_db
+from models import DischargeSummary, Consultation, Patient, PatientClinical, EchoReport, Prescription, Admission, IpdNote, BedTransfer, BedTier, Bed
 from routers.auth import get_current_user, assert_owner, User
 from services.discharge_generation import generate_discharge_summary
 from audit import log_access

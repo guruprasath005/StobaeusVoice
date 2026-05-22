@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from database import get_db, VoiceBotCall, Patient, Consultation, DischargeSummary
+from db import get_db
+from models import VoiceBotCall, Patient, Consultation, DischargeSummary
 from routers.auth import get_current_user, assert_owner, User
 from pydantic import BaseModel
 from typing import Optional

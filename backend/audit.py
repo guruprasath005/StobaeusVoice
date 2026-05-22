@@ -1,6 +1,6 @@
 """DPDP access-audit logging — records who touched which patient data."""
 from sqlalchemy.orm import Session
-from database import AccessLog
+from models import AccessLog
 import uuid
 
 

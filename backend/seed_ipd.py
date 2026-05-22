@@ -4,7 +4,8 @@ Run once after schema migration:
   python seed_ipd.py
 Idempotent — re-running is safe (skips existing rows by name/id).
 """
-from database import SessionLocal, Ward, BedTier, Bed, init_db
+from db import SessionLocal, init_db
+from models import Ward, BedTier, Bed
 import uuid
 
 init_db()

@@ -15,14 +15,15 @@ from jose import JWTError, jwt
 import websockets
 import asyncio
 import json
-import os
 
-from database import SessionLocal, User
+from config import settings
+from db import SessionLocal
+from models import User
 from routers.auth import SECRET_KEY, ALGORITHM
 
 router = APIRouter(tags=["streaming"])
 
-DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
+DEEPGRAM_API_KEY = settings.deepgram_api_key
 
 # Nova-3 supports Tamil + English on the streaming API; language=multi enables
 # Tamil<->English code-switching, common in Indian cardiology dictation.

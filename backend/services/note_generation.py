@@ -1,8 +1,10 @@
 from openai import OpenAI, APIError
 from fastapi import HTTPException
-import os, json
+import json
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from config import settings
+
+client = OpenAI(api_key=settings.openai_api_key)
 
 SYSTEM_PROMPT = """You are a clinical documentation assistant for Indian hospitals.
 Generate a structured SOAP note from the consultation transcript.

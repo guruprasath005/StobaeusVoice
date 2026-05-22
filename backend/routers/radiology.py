@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from database import get_db, RadiologyReport, Patient
+from db import get_db
+from models import RadiologyReport, Patient
 from routers.auth import get_current_user, assert_owner, User
 from services.transcription import transcribe_audio
 from services.radiology_generation import generate_radiology_impression

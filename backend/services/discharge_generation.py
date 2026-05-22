@@ -1,9 +1,11 @@
 from openai import OpenAI, APIError
 from fastapi import HTTPException
-import os, json
+import json
+
+from config import settings
 from datetime import datetime
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key)
 
 SYSTEM_PROMPT = """You are a clinical documentation assistant for Indian cardiology departments.
 Generate a structured cardiac discharge summary from the consultation data provided.

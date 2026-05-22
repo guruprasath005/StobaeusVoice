@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-from database import get_db, Patient, PatientClinical
+from db import get_db
+from models import Patient, PatientClinical
 from routers.auth import get_current_user, User
 from audit import log_access
 from datetime import date, datetime, timezone
@@ -197,7 +198,7 @@ def get_patient(patient_id: str, db: Session = Depends(get_db), current_user: Us
 @router.get("/{patient_id}/consultations")
 def get_patient_consultations(patient_id: str, limit: int = 15, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """List recent consultations for a patient — for history tab in patient detail panel."""
-    from database import Consultation, DischargeSummary
+    from models import Consultation, DischargeSummary
     rows = db.query(Consultation).filter(
         Consultation.patient_id == patient_id,
         Consultation.status.in_(["approved", "reviewing"]),

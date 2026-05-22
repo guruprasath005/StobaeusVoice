@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from database import get_db, NurseBedLog, Patient
+from db import get_db
+from models import NurseBedLog, Patient
 from routers.auth import get_current_user, User
 from pydantic import BaseModel
 from typing import Optional

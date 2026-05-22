@@ -1,8 +1,10 @@
 from openai import OpenAI, APIError
 from fastapi import HTTPException
-import os, io
+import io
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from config import settings
+
+client = OpenAI(api_key=settings.openai_api_key)
 
 async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.webm") -> str:
     """

@@ -6,11 +6,13 @@ recent prior progress notes. The model drafts a short S/O/A/P specifically for
 """
 from openai import OpenAI, APIError
 from fastapi import HTTPException
-import os, json
+import json
+
+from config import settings
 
 from services.note_generation import build_patient_context
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key)
 
 SYSTEM_PROMPT = """You are a cardiology ward-round documentation assistant for Indian hospitals.
 Generate a SHORT daily progress note for an inpatient cardiology ward round.
