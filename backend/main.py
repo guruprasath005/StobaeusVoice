@@ -5,7 +5,7 @@ import os
 from database import init_db
 from routers import patients, consultations, auth, echo, prescriptions, discharge, nurse, ipd, voice_bot, appointments, radiology, streaming
 
-load_dotenv()
+load_dotenv(override=True)  # .env is authoritative — beat any stale shell vars
 
 app = FastAPI(title="StobaeusVoice API", version="0.1.0")
 

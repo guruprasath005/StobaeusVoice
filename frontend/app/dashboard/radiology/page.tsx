@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import PatientSearchModal from "@/components/PatientSearchModal";
 
 interface RadiologyReport {
   report_id: string;
@@ -116,6 +117,8 @@ export default function RadiologyPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState<string | null>(null);
   const [filterTemplate, setFilterTemplate] = useState<string>("all");
+  // Template clicked, awaiting patient selection in the modal.
+  const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -127,10 +130,26 @@ export default function RadiologyPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const createReport = async (template: string) => {
+  // Picking a template only opens the patient picker. The report is created
+  // once a patient (or "Anonymous") is chosen — the same pattern as Echo.
+  const startReport = (templateId: string) => setPendingTemplate(templateId);
+
+  const createWithPatient = async (patientId: string | null) => {
+    if (!pendingTemplate) return;
+    const template = pendingTemplate;
+    setPendingTemplate(null);
     setCreating(template);
     try {
-      const res = await api.createRadiologyReport(template);
+      // If this patient already has a report of the chosen template, open it
+      // instead of creating a duplicate draft. Anonymous always gets a new one.
+      if (patientId) {
+        const existing = await api.listRadiologyReports(patientId, template);
+        if (Array.isArray(existing) && existing.length > 0) {
+          router.push(`/dashboard/radiology/${existing[0].report_id}`);
+          return;
+        }
+      }
+      const res = await api.createRadiologyReport(template, patientId ?? undefined);
       if (res.report_id) router.push(`/dashboard/radiology/${res.report_id}`);
     } catch { /* silent */ }
     finally { setCreating(null); }
@@ -180,7 +199,7 @@ export default function RadiologyPage() {
           {TEMPLATES.map(t => (
             <button
               key={t.id}
-              onClick={() => createReport(t.id)}
+              onClick={() => startReport(t.id)}
               disabled={!!creating}
               className="text-left bg-white rounded-xl p-4 transition cursor-pointer disabled:opacity-60 group"
               style={{
@@ -371,6 +390,14 @@ export default function RadiologyPage() {
           )}
         </div>
       </div>
+
+      {pendingTemplate && (
+        <PatientSearchModal
+          title={`Find patient for ${TEMPLATE_MAP[pendingTemplate]?.label || "report"}`}
+          onSelect={createWithPatient}
+          onClose={() => setPendingTemplate(null)}
+        />
+      )}
     </div>
   );
 }

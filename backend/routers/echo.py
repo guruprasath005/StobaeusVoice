@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from database import get_db, EchoReport, Patient, PatientClinical
 from routers.auth import get_current_user, assert_owner, User
-from services.echo_generation import generate_echo_impression
+from services.echo_generation import generate_echo_report
 from services.transcription import transcribe_audio
 from datetime import datetime, timezone
 import uuid
@@ -28,6 +28,9 @@ class FinalizeRequest(BaseModel):
     findings: dict
     impression: str
     icd_codes: Optional[list] = None
+
+class SetPatientRequest(BaseModel):
+    patient_id: Optional[str] = None   # None = anonymous
 
 # ── Routes ────────────────────────────────────────────────────────
 
@@ -119,6 +122,25 @@ def save_report(report_id: str, req: SaveReportRequest, db: Session = Depends(ge
     return {"ok": True}
 
 
+@router.patch("/reports/{report_id}/patient")
+def set_report_patient(report_id: str, req: SetPatientRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Assign or change the patient on a report. Locked once finalized."""
+    r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
+    if not r:
+        raise HTTPException(404, "Report not found")
+    assert_owner(r.doctor_id, current_user)
+    if r.status == "final":
+        raise HTTPException(400, "Cannot change the patient on a finalized report")
+    r.patient_id = req.patient_id
+    db.commit()
+    patient_display = None
+    if r.patient_id and not r.patient_id.startswith("PT-ANON"):
+        p = db.query(Patient).filter(Patient.patient_id == r.patient_id).first()
+        if p:
+            patient_display = p.full_name
+    return {"ok": True, "patient_id": r.patient_id, "patient_display": patient_display}
+
+
 @router.post("/reports/{report_id}/finalize")
 def finalize_report(report_id: str, req: FinalizeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
@@ -141,8 +163,8 @@ async def generate_impression(report_id: str, db: Session = Depends(get_db), cur
     if not r:
         raise HTTPException(404, "Report not found")
     assert_owner(r.doctor_id, current_user)
-    if not r.findings:
-        raise HTTPException(400, "No findings saved — fill in findings first")
+    if not (r.findings or (r.impression and r.impression.strip())):
+        raise HTTPException(400, "Nothing to generate from — dictate an impression or fill in findings first")
 
     clinical = None
     if r.patient_id and not r.patient_id.startswith("PT-ANON"):
@@ -154,11 +176,22 @@ async def generate_impression(report_id: str, db: Session = Depends(get_db), cur
                 "conditions": pc.conditions or [],
             }
 
-    result = await generate_echo_impression(r.template, r.findings, clinical)
-    r.impression = result.get("impression", "")
-    r.icd_codes = result.get("icd_codes", [])
+    result = await generate_echo_report(r.template, r.findings or {}, clinical, r.impression)
+
+    # Merge newly-extracted fields into existing findings (overwrite on overlap —
+    # the LLM is instructed to leave existing fields alone unless dictation conflicts).
+    merged = dict(r.findings or {})
+    merged.update(result.get("findings") or {})
+    r.findings = merged
+    r.impression = result.get("impression") or r.impression
+    r.icd_codes = result.get("icd_codes") or []
     db.commit()
-    return result
+
+    return {
+        "findings": merged,
+        "impression": r.impression,
+        "icd_codes": r.icd_codes,
+    }
 
 
 @router.post("/reports/{report_id}/dictate")

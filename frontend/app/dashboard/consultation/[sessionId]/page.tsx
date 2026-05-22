@@ -283,8 +283,8 @@ export default function ActiveConsultationPage() {
       await api.updateTranscript(sessionId, transcriptRef.current || transcript);
       await api.generateNote(sessionId);
       router.push(`/dashboard/consultation/${sessionId}/review`);
-    } catch {
-      setError("Note generation failed — check that the backend is running with a valid OpenAI key.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Note generation failed — check the backend and OpenAI key.");
       setGenerating(false);
     }
   };
@@ -294,12 +294,11 @@ export default function ActiveConsultationPage() {
     else startRecording();
   };
 
-  // Leaving without recording anything → discard the empty session so it
-  // never shows up as a stray "recording" entry on the dashboard.
+  // Cancel discards the consultation entirely — transcript included — so it
+  // never lingers in the DB as a stray "recording" record.
   const handleCancel = async () => {
-    if (!transcript.trim() && !transcriptRef.current.trim()) {
-      try { await api.discardConsultation(sessionId); } catch { /* best-effort */ }
-    }
+    if (recording) { try { await stopRecording(); } catch { /* best-effort */ } }
+    try { await api.discardConsultation(sessionId); } catch { /* best-effort */ }
     router.push("/dashboard");
   };
 

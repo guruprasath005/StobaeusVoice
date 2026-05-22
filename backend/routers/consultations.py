@@ -368,13 +368,13 @@ def approve_note(session_id: str, body: ApproveRequest, db: Session = Depends(ge
 
 @router.delete("/{session_id}")
 def discard_consultation(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Discard an abandoned session. Only deletes if nothing was ever recorded
-    (no transcript) — a consultation with real content is never removed here."""
+    """Discard a cancelled consultation, transcript and all. An approved /
+    pushed note is part of the record and is never removed here."""
     c = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not c:
         return {"ok": True, "discarded": False}
     assert_owner(c.doctor_id, current_user)
-    if c.transcript:
+    if c.status in ("approved", "pushed"):
         return {"ok": True, "discarded": False}
     db.delete(c)
     db.commit()

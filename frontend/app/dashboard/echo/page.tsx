@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import PatientSearchModal from "@/components/PatientSearchModal";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -114,6 +115,8 @@ export default function EchoPage() {
   const [reports, setReports] = useState<EchoReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<string | null>(null);
+  // template chosen, waiting for the user to pick a patient in the modal
+  const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
 
   useEffect(() => {
     api.listEchoReports()
@@ -122,11 +125,19 @@ export default function EchoPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const startReport = async (templateKey: string) => {
+  // Picking a template opens the patient search; the report is only created
+  // once a patient (or "Anonymous") is chosen.
+  const startReport = (templateKey: string) => setPendingTemplate(templateKey);
+
+  const createWithPatient = async (patientId: string | null) => {
+    if (!pendingTemplate) return;
+    const templateKey = pendingTemplate;
+    setPendingTemplate(null);
     setStarting(templateKey);
     try {
-      const res = await api.createEchoReport(templateKey);
+      const res = await api.createEchoReport(templateKey, patientId ?? undefined);
       if (res.report_id) router.push(`/dashboard/echo/${res.report_id}`);
+      else setStarting(null);
     } catch { setStarting(null); }
   };
 
@@ -243,6 +254,14 @@ export default function EchoPage() {
           </div>
         </div>
       </div>
+
+      {pendingTemplate && (
+        <PatientSearchModal
+          title="Find patient for this report"
+          onSelect={createWithPatient}
+          onClose={() => setPendingTemplate(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import { useLiveAppend } from "@/lib/useLiveDictation";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -128,10 +129,9 @@ export default function NursePage() {
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceResult, setVoiceResult] = useState<Record<string, unknown> | null>(null);
 
-  // Recording
-  const [recording, setRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  // Live Deepgram dictation — voice text fills as the nurse speaks
+  const { recording, error: dictError, toggle: toggleRecording } =
+    useLiveAppend(voiceText, setVoiceText);
 
   const loadBeds = useCallback(async () => {
     try {
@@ -181,47 +181,10 @@ export default function NursePage() {
     finally { setSaving(false); setTimeout(() => setSaveMsg(""), 2500); }
   };
 
-  const startRecording = async () => {
+  const onMicClick = () => {
     if (!selectedId) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      chunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setVoiceParsing(true); setVoiceResult(null);
-        try {
-          const res = await api.transcribeBedAudio(selectedId!, blob);
-          if (res.transcript) setVoiceText(res.transcript);
-          if (res.parsed && Object.keys(res.parsed).length > 0) {
-            setVoiceResult(res.parsed);
-            if (res.parsed.bp) setBp(res.parsed.bp as string);
-            if (res.parsed.hr) setHr(String(res.parsed.hr));
-            if (res.parsed.spo2) setSpo2(String(res.parsed.spo2));
-            if (res.parsed.temp) setTemp(res.parsed.temp as string);
-            if (res.parsed.rr) setRr(String(res.parsed.rr));
-            if (res.parsed.drips) setDrips(res.parsed.drips as Drip[]);
-            await loadBeds();
-          } else if (res.transcript) {
-            setVoiceResult({ error: "No vitals detected — check text and parse manually" });
-          }
-        } catch { setVoiceResult({ error: "Transcription failed" }); }
-        finally { setVoiceParsing(false); }
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setRecording(true);
-    } catch {
-      setVoiceResult({ error: "Microphone access denied" });
-    }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
-    setRecording(false);
+    setVoiceResult(null);
+    toggleRecording();
   };
 
   const submitVoice = async () => {
@@ -321,7 +284,7 @@ export default function NursePage() {
                 {/* Mic button */}
                 <div className="flex items-center justify-center mb-2">
                   <button
-                    onClick={recording ? stopRecording : startRecording}
+                    onClick={onMicClick}
                     disabled={voiceParsing}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                     style={recording
@@ -332,16 +295,19 @@ export default function NursePage() {
                     {recording ? (
                       <>
                         <span className="w-2 h-2 rounded-full bg-[#EF4444] animate-pulse" />
-                        Stop Recording
+                        Stop
                       </>
                     ) : (
                       <>
                         <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={13} />
-                        {voiceParsing ? "Transcribing…" : "Record Vitals"}
+                        Record Vitals (live)
                       </>
                     )}
                   </button>
                 </div>
+                {dictError && (
+                  <p className="text-[10px] text-red-600 text-center mb-1.5">{dictError}</p>
+                )}
 
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="flex-1 h-px bg-[#fecdd3]" />

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { useLiveAppend } from "@/lib/useLiveDictation";
 
 // ── Drug database (Indian cardiac drugs) ──────────────────────────
 
@@ -245,11 +246,12 @@ interface RxData {
 const FREQS = ["OD", "BD", "TDS", "QID", "HS", "SOS", "Weekly", "OD (morning)", "BD (SC)", "OD with dinner", "OD (dose per INR)"];
 const DURATIONS = ["7 days", "14 days", "1 month", "2 months", "3 months", "6 months", "1 year", "Lifelong"];
 
-function DrugRow({ drug, index, onChange, onRemove }: {
+function DrugRow({ drug, index, onChange, onRemove, locked }: {
   drug: DrugItem;
   index: number;
   onChange: (i: number, field: keyof DrugItem, val: string) => void;
   onRemove: (i: number) => void;
+  locked: boolean;
 }) {
   return (
     <div className="py-2.5" style={{ borderBottom: "1px dashed #ececea" }}>
@@ -259,14 +261,16 @@ function DrugRow({ drug, index, onChange, onRemove }: {
         <input
           value={drug.dose}
           onChange={e => onChange(index, "dose", e.target.value)}
+          disabled={locked}
           placeholder="Dose"
-          className="w-20 px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] text-center"
+          className="w-20 px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] text-center disabled:bg-gray-50 disabled:text-gray-500"
           style={{ border: "1px solid #d4d4d2" }}
         />
         <select
           value={drug.freq}
           onChange={e => onChange(index, "freq", e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white"
+          disabled={locked}
+          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white disabled:bg-gray-50 disabled:text-gray-500"
           style={{ border: "1px solid #d4d4d2" }}
         >
           {FREQS.map(f => <option key={f} value={f}>{f}</option>)}
@@ -274,20 +278,24 @@ function DrugRow({ drug, index, onChange, onRemove }: {
         <select
           value={drug.duration}
           onChange={e => onChange(index, "duration", e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white"
+          disabled={locked}
+          className="px-2 py-1 text-xs rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] bg-white disabled:bg-gray-50 disabled:text-gray-500"
           style={{ border: "1px solid #d4d4d2" }}
         >
           <option value="">Duration…</option>
           {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <button onClick={() => onRemove(index)} className="text-gray-300 hover:text-red-400 transition cursor-pointer shrink-0 text-base leading-none">×</button>
+        {!locked && (
+          <button onClick={() => onRemove(index)} className="text-gray-300 hover:text-red-400 transition cursor-pointer shrink-0 text-base leading-none">×</button>
+        )}
       </div>
       <div className="flex items-center gap-2 mt-1.5 pl-7">
         <input
           value={drug.instructions}
           onChange={e => onChange(index, "instructions", e.target.value)}
+          disabled={locked}
           placeholder="Special instructions (e.g., take after food)"
-          className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] text-gray-500"
+          className="flex-1 px-2 py-1 text-[11px] rounded-lg outline-none focus:ring-1 focus:ring-[#e11d48] text-gray-500 disabled:bg-gray-50"
           style={{ border: "1px solid #ececea" }}
         />
       </div>
@@ -398,12 +406,17 @@ function InteractionAlert({ interaction }: { interaction: Interaction }) {
 
 function PrintLayout({ rx, doctorName }: { rx: RxData; doctorName?: string }) {
   return (
-    <div id="print-rx" className="hidden">
+    // Off-screen on screen; in print media we flip to display:block (visibility
+    // alone can't beat display:none, which is why printing was previously blank).
+    <div id="print-rx" style={{ display: "none" }}>
       <style>{`
         @media print {
+          @page { size: A4; margin: 14mm; }
+          html, body { background: white !important; }
           body * { visibility: hidden !important; }
+          #print-rx { display: block !important; }
           #print-rx, #print-rx * { visibility: visible !important; }
-          #print-rx { position: fixed; inset: 0; padding: 32px 40px; background: white; font-family: Inter, sans-serif; }
+          #print-rx { position: fixed; inset: 0; padding: 18px 28px; background: white; font-family: Inter, sans-serif; color: #1a1a1a; }
         }
       `}</style>
       <div style={{ borderBottom: "2px solid #1a1a1a", paddingBottom: 12, marginBottom: 16 }}>
@@ -458,6 +471,16 @@ export default function PrescriptionDetailPage() {
   const [waSent, setWaSent] = useState(false);
   const [error, setError] = useState("");
 
+  // Dictation state — lives on the right panel.
+  const [transcript, setTranscript] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const { recording: dictating, error: dictError, toggle: toggleDictation } =
+    useLiveAppend(transcript, setTranscript);
+
+  // Once confirmed/sent, every editable control on the page is read-only.
+  const locked = rx?.status === "confirmed" || rx?.status === "sent";
+
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -477,6 +500,7 @@ export default function PrescriptionDetailPage() {
   }, [rxId]);
 
   const autosave = useCallback(() => {
+    if (locked) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setSaved(false);
     saveTimerRef.current = setTimeout(async () => {
@@ -489,9 +513,50 @@ export default function PrescriptionDetailPage() {
         setSaving(false);
       }
     }, 1200);
-  }, [rxId, diagnosis, drugs, notes]);
+  }, [rxId, diagnosis, drugs, notes, locked]);
 
   useEffect(() => { autosave(); }, [drugs, diagnosis, notes, autosave]);
+
+  // ── Dictation → AI extraction → fill form ──────────────────────
+  const generateFromDictation = async () => {
+    if (!transcript.trim()) {
+      setError("Dictate the prescription first.");
+      return;
+    }
+    setGenerating(true); setError("");
+    try {
+      const result = await api.generatePrescriptionFromDictation(rxId, transcript);
+      if (result.diagnosis) setDiagnosis(result.diagnosis);
+      if (Array.isArray(result.drugs) && result.drugs.length > 0) {
+        // Merge — append new drugs, keep any the doctor already added manually.
+        const existingNames = new Set(drugs.map(d => d.drug.toLowerCase()));
+        const additions = result.drugs.filter(d => !existingNames.has(d.drug.toLowerCase()));
+        setDrugs(arr => [...arr, ...additions]);
+      }
+      if (result.notes) setNotes(prev => prev ? `${prev}\n${result.notes}` : result.notes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not extract prescription from dictation.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // ── Confirm — lock the prescription ────────────────────────────
+  const confirmRx = async () => {
+    if (drugs.length === 0) { setError("Add at least one medication before confirming."); return; }
+    // Flush any pending autosave first so the latest edits are persisted.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setConfirming(true); setError("");
+    try {
+      await api.updatePrescription(rxId, { diagnosis, drugs, notes });
+      const res = await api.confirmPrescription(rxId);
+      setRx(r => r ? { ...r, status: res.status } : r);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not confirm prescription.");
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const handleDrugChange = (i: number, field: keyof DrugItem, val: string) => {
     setDrugs(arr => arr.map((d, idx) => idx === i ? { ...d, [field]: val } : d));
@@ -511,9 +576,23 @@ export default function PrescriptionDetailPage() {
     try {
       const res = await api.sendWhatsApp(rxId);
       if (res.whatsapp_url) {
-        window.open(res.whatsapp_url, "_blank");
+        // Backend returns a wa.me web link. Rewrite to the whatsapp:// scheme so
+        // the user's installed WhatsApp Desktop app handles it directly (Mac /
+        // Windows). Browser falls back to wa.me automatically if the protocol
+        // isn't registered.
+        const desktopUrl = res.whatsapp_url.replace(
+          /^https?:\/\/wa\.me\//,
+          "whatsapp://send?phone="
+        ).replace("?text=", "&text=");
+        window.location.href = desktopUrl;
+
+        // Open the print-to-PDF dialog so the doctor can save the PDF and drag
+        // it into the WhatsApp chat. WhatsApp does NOT allow auto-attaching
+        // files via URL — this is the standard manual handoff.
+        setTimeout(() => window.print(), 600);
+
         setWaSent(true);
-        setRx(r => r ? { ...r, status: "sent", whatsapp_sent_at: new Date().toISOString() } : r);
+        setRx(r => r ? { ...r, whatsapp_sent_at: new Date().toISOString() } : r);
       }
     } catch {
       setError("Failed to generate WhatsApp link.");
@@ -547,11 +626,18 @@ export default function PrescriptionDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between px-5 h-[72px] bg-white sticky top-0 z-10" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <div>
-            <h1 className="font-hand text-xl font-bold text-gray-900">{rx.rx_id}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-hand text-xl font-bold text-gray-900">{rx.rx_id}</h1>
+              {locked && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#15803D]" style={{ border: "1px solid #86EFAC" }}>
+                  ✓ Confirmed
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-400 mt-0.5">
               {rx.patient_display || rx.patient_id || "Anonymous"} · {rx.created_at ? new Date(rx.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}
-              {saving && <span className="ml-2 text-gray-300">Saving…</span>}
-              {saved && <span className="ml-2 text-[#10B981]">Saved</span>}
+              {!locked && saving && <span className="ml-2 text-gray-300">Saving…</span>}
+              {!locked && saved && <span className="ml-2 text-[#10B981]">Saved</span>}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -584,8 +670,9 @@ export default function PrescriptionDetailPage() {
             <input
               value={diagnosis}
               onChange={e => setDiagnosis(e.target.value)}
+              disabled={locked}
               placeholder="e.g. Acute STEMI post-PCI, Atrial Fibrillation with RVR, DCM with HFrEF…"
-              className="w-full px-4 py-3 text-xs text-gray-700 outline-none bg-white"
+              className="w-full px-4 py-3 text-xs text-gray-700 outline-none bg-white disabled:bg-gray-50 disabled:text-gray-600"
             />
           </div>
 
@@ -604,7 +691,7 @@ export default function PrescriptionDetailPage() {
                 <p className="text-[11px] text-gray-400 py-4 text-center">No medications added — search below to add</p>
               )}
               {drugs.map((d, i) => (
-                <DrugRow key={i} drug={d} index={i} onChange={handleDrugChange} onRemove={handleDrugRemove} />
+                <DrugRow key={i} drug={d} index={i} onChange={handleDrugChange} onRemove={handleDrugRemove} locked={locked} />
               ))}
             </div>
 
@@ -616,7 +703,7 @@ export default function PrescriptionDetailPage() {
               </div>
             )}
 
-            <DrugSearch onAdd={handleAddDrug} />
+            {!locked && <DrugSearch onAdd={handleAddDrug} />}
           </div>
 
           {/* Notes */}
@@ -628,9 +715,10 @@ export default function PrescriptionDetailPage() {
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
+              disabled={locked}
               rows={3}
               placeholder="Special instructions, dietary advice, follow-up guidance, monitoring parameters…"
-              className="w-full px-4 py-3 text-xs text-gray-700 outline-none resize-none bg-white leading-relaxed"
+              className="w-full px-4 py-3 text-xs text-gray-700 outline-none resize-none bg-white leading-relaxed disabled:bg-gray-50 disabled:text-gray-600"
             />
           </div>
         </div>
@@ -644,6 +732,105 @@ export default function PrescriptionDetailPage() {
         </div>
 
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
+          {/* Dictation — only shown while the prescription is editable */}
+          {!locked && (
+            <div className="rounded-xl p-3 bg-white" style={{ border: "1.5px solid #1a1a1a" }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-[#ffe4e6] flex items-center justify-center shrink-0">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9f1239" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                      <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
+                    </svg>
+                  </div>
+                  <p className="text-xs font-bold text-gray-800">Dictate prescription</p>
+                </div>
+                <button
+                  onClick={toggleDictation}
+                  className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition cursor-pointer ${
+                    dictating
+                      ? "bg-red-50 text-red-600 border border-red-200"
+                      : "bg-[#ffe4e6] text-[#9f1239] hover:bg-[#fecdd3]"
+                  }`}
+                >
+                  {dictating ? (
+                    <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" /> Stop</>
+                  ) : (
+                    <>● Dictate</>
+                  )}
+                </button>
+              </div>
+
+              <p className="text-[10px] text-gray-500 mb-2 leading-relaxed">
+                Speak the diagnosis, drugs, doses, and any notes. Review the live transcript below, then Generate to fill the prescription.
+              </p>
+
+              <textarea
+                value={transcript}
+                onChange={e => setTranscript(e.target.value)}
+                placeholder='e.g. "Post-PCI follow-up. Aspirin 75mg OD, Atorvastatin 40mg HS, Metoprolol 50mg OD, Ramipril 5mg OD. Continue lifelong. Take after food. Follow up in two weeks."'
+                rows={5}
+                className="w-full px-2.5 py-1.5 text-[11px] rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white resize-none leading-relaxed"
+                style={{ border: "1.5px solid #d4d4d2" }}
+              />
+
+              {dictError && (
+                <p className="text-[10px] text-red-600 mt-1.5">{dictError}</p>
+              )}
+
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  onClick={generateFromDictation}
+                  disabled={generating || dictating || !transcript.trim()}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-[#e11d48] text-white text-[11px] font-semibold py-2 rounded-lg hover:bg-[#be123c] transition cursor-pointer disabled:opacity-50"
+                  style={{ boxShadow: "2px 2px 0 #9f1239" }}
+                >
+                  {generating ? (
+                    <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" /> Generating…</>
+                  ) : (
+                    <>✦ Generate from Dictation</>
+                  )}
+                </button>
+                {transcript && !dictating && (
+                  <button
+                    onClick={() => setTranscript("")}
+                    className="text-[11px] text-gray-400 hover:text-gray-700 px-2 py-2 cursor-pointer"
+                    title="Clear transcript"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Confirm prescription — locks the record */}
+          {!locked && (
+            <div className="rounded-xl p-3" style={{ border: "1.5px solid #15803D", background: "#F0FDF4" }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-6 h-6 rounded-lg bg-[#DCFCE7] flex items-center justify-center shrink-0">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                </div>
+                <p className="text-xs font-bold text-[#14532D]">Confirm Prescription</p>
+              </div>
+              <p className="text-[10px] text-[#15803D] mb-2.5 leading-relaxed">
+                Locks the prescription. After confirming, the diagnosis, medications and notes cannot be edited.
+              </p>
+              <button
+                onClick={confirmRx}
+                disabled={confirming || drugs.length === 0}
+                className="w-full flex items-center justify-center gap-2 bg-[#15803D] text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-[#166534] transition cursor-pointer disabled:opacity-50"
+                style={{ boxShadow: "2px 2px 0 #14532D" }}
+              >
+                {confirming ? (
+                  <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Confirming…</>
+                ) : (
+                  <>✓ Confirm &amp; Lock</>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Patient card */}
           <div className="rounded-xl p-3 bg-[#fff1f2]" style={{ border: "1px solid #fecdd3" }}>
             <p className="text-[10px] font-bold text-[#9f1239] uppercase tracking-wide mb-1.5">Patient</p>

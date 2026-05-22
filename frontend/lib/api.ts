@@ -100,17 +100,25 @@ export const api = {
     }).then(r => r.json());
   },
 
-  updateTranscript: (sessionId: string, transcript: string) =>
-    apiFetch(`${BASE}/consultations/${sessionId}/transcript`, {
+  updateTranscript: async (sessionId: string, transcript: string) => {
+    const res = await apiFetch(`${BASE}/consultations/${sessionId}/transcript`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transcript }),
-    }).then(r => r.json()),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body;
+  },
 
-  generateNote: (sessionId: string) =>
-    apiFetch(`${BASE}/consultations/${sessionId}/generate-note`, {
+  generateNote: async (sessionId: string) => {
+    const res = await apiFetch(`${BASE}/consultations/${sessionId}/generate-note`, {
       method: "POST",
-    }).then(r => r.json()),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body;
+  },
 
   approveNote: (sessionId: string, soapNote: Record<string, unknown>, prescription?: unknown[]) =>
     apiFetch(`${BASE}/consultations/${sessionId}/approve`, {
@@ -156,13 +164,22 @@ export const api = {
       body: JSON.stringify({ findings, impression, icd_codes: icdCodes }),
     }).then(r => r.json()),
 
-  generateEchoImpression: (reportId: string) =>
-    apiFetch(`${BASE}/echo/reports/${reportId}/generate-impression`, { method: "POST" }).then(r => r.json()),
+  setEchoReportPatient: async (reportId: string, patientId: string | null) => {
+    const res = await apiFetch(`${BASE}/echo/reports/${reportId}/patient`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patient_id: patientId }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body;
+  },
 
-  dictateEchoImpression: (reportId: string, audioBlob: Blob) => {
-    const form = new FormData();
-    form.append("audio", audioBlob, "audio.webm");
-    return apiFetch(`${BASE}/echo/reports/${reportId}/dictate`, { method: "POST", body: form }).then(r => r.json());
+  generateEchoImpression: async (reportId: string) => {
+    const res = await apiFetch(`${BASE}/echo/reports/${reportId}/generate-impression`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body;
   },
 
   // Prescriptions
@@ -189,6 +206,28 @@ export const api = {
   sendWhatsApp: (rxId: string) =>
     apiFetch(`${BASE}/prescriptions/${rxId}/send-whatsapp`, { method: "POST" }).then(r => r.json()),
 
+  generatePrescriptionFromDictation: async (rxId: string, transcript: string) => {
+    const res = await apiFetch(`${BASE}/prescriptions/${rxId}/generate-from-dictation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body as {
+      diagnosis: string;
+      drugs: { drug: string; dose: string; freq: string; duration: string; instructions: string }[];
+      notes: string;
+    };
+  },
+
+  confirmPrescription: async (rxId: string) => {
+    const res = await apiFetch(`${BASE}/prescriptions/${rxId}/confirm`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body as { status: string };
+  },
+
   // Nurse Station
   listBeds: () =>
     apiFetch(`${BASE}/nurse/beds`).then(r => r.json()),
@@ -213,12 +252,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     }).then(r => r.json()),
-
-  transcribeBedAudio: (bedId: string, audioBlob: Blob) => {
-    const form = new FormData();
-    form.append("audio", audioBlob, "audio.webm");
-    return apiFetch(`${BASE}/nurse/beds/${bedId}/transcribe`, { method: "POST", body: form }).then(r => r.json());
-  },
 
   // IPD Progress Notes
   getWardPatients: () =>
@@ -312,18 +345,6 @@ export const api = {
 
   generateRadiologyImpression: (reportId: string) =>
     apiFetch(`${BASE}/radiology/reports/${reportId}/generate-impression`, { method: "POST" }).then(r => r.json()),
-
-  dictateRadiologyField: (reportId: string, audioBlob: Blob) => {
-    const form = new FormData();
-    form.append("audio", audioBlob, "audio.webm");
-    return apiFetch(`${BASE}/radiology/reports/${reportId}/dictate`, { method: "POST", body: form }).then(r => r.json());
-  },
-
-  dictateIpdNote: (audioBlob: Blob) => {
-    const form = new FormData();
-    form.append("audio", audioBlob, "audio.webm");
-    return apiFetch(`${BASE}/ipd/dictate`, { method: "POST", body: form }).then(r => r.json());
-  },
 
   // Admin stats
   getAdminStats: () =>

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+load_dotenv(override=True)  # .env is authoritative — beat any stale shell vars
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./stobaeus.db")
 

@@ -47,8 +47,8 @@ function Icon({ d, d2, size = 16 }: { d: string; d2?: string; size?: number }) {
 
 // ── Editable section ───────────────────────────────────────────────
 
-function SoapSection({ label, value, onChange, rows = 4 }: {
-  label: string; value: string; onChange: (v: string) => void; rows?: number;
+function SoapSection({ label, value, onChange, rows = 4, readOnly = false }: {
+  label: string; value: string; onChange: (v: string) => void; rows?: number; readOnly?: boolean;
 }) {
   return (
     <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1.5px solid #1a1a1a" }}>
@@ -60,7 +60,8 @@ function SoapSection({ label, value, onChange, rows = 4 }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         rows={rows}
-        className="w-full p-3 text-xs text-gray-700 leading-relaxed outline-none resize-none bg-white"
+        readOnly={readOnly}
+        className={`w-full p-3 text-xs text-gray-700 leading-relaxed outline-none resize-none ${readOnly ? "bg-gray-50" : "bg-white"}`}
         style={{ minHeight: rows * 22 }}
       />
     </div>
@@ -69,22 +70,24 @@ function SoapSection({ label, value, onChange, rows = 4 }: {
 
 // ── ICD-10 row ─────────────────────────────────────────────────────
 
-function IcdBadge({ code, description, onRemove }: {
-  code: string; description: string; onRemove: () => void;
+function IcdBadge({ code, description, onRemove, readOnly = false }: {
+  code: string; description: string; onRemove: () => void; readOnly?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2 py-1.5" style={{ borderBottom: "1px dashed #ececea" }}>
       <span className="text-[11px] font-mono font-bold text-[#e11d48] w-16 shrink-0">{code}</span>
       <span className="flex-1 text-[11px] text-gray-700">{description}</span>
-      <button onClick={onRemove} className="text-gray-300 hover:text-red-400 cursor-pointer shrink-0">×</button>
+      {!readOnly && (
+        <button onClick={onRemove} className="text-gray-300 hover:text-red-400 cursor-pointer shrink-0">×</button>
+      )}
     </div>
   );
 }
 
 // ── Prescription row ───────────────────────────────────────────────
 
-function RxRow({ drug, dose, freq, duration, instructions, onRemove }: {
-  drug: string; dose?: string; freq?: string; duration?: string; instructions?: string; onRemove: () => void;
+function RxRow({ drug, dose, freq, duration, instructions, onRemove, readOnly = false }: {
+  drug: string; dose?: string; freq?: string; duration?: string; instructions?: string; onRemove: () => void; readOnly?: boolean;
 }) {
   return (
     <div className="flex items-start gap-2 py-2" style={{ borderBottom: "1px dashed #ececea" }}>
@@ -93,7 +96,9 @@ function RxRow({ drug, dose, freq, duration, instructions, onRemove }: {
         {duration && <p className="text-[10px] text-gray-500">Duration: {duration}</p>}
         {instructions && <p className="text-[10px] text-gray-400">{instructions}</p>}
       </div>
-      <button onClick={onRemove} className="text-gray-300 hover:text-red-400 cursor-pointer shrink-0 mt-0.5">×</button>
+      {!readOnly && (
+        <button onClick={onRemove} className="text-gray-300 hover:text-red-400 cursor-pointer shrink-0 mt-0.5">×</button>
+      )}
     </div>
   );
 }
@@ -142,6 +147,8 @@ export default function ReviewPage() {
       setIcdCodes(Array.isArray(codes) ? codes : []);
       const rx = d.prescription || note.prescription || [];
       setPrescription(Array.isArray(rx) ? rx as { drug: string; dose?: string; freq?: string; duration?: string; instructions?: string }[] : []);
+      // An already-approved note opened from patient history is locked.
+      if (d.status === "approved" || d.status === "pushed") setSaved(true);
     }).catch(() => setError("Failed to load consultation"))
       .finally(() => setLoading(false));
   }, [sessionId]);
@@ -197,6 +204,9 @@ export default function ReviewPage() {
     );
   }
 
+  // Once approved/pushed, the note is part of the record — read-only.
+  const locked = data.status === "approved" || data.status === "pushed";
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left: Transcript / Previous Visit */}
@@ -223,12 +233,13 @@ export default function ReviewPage() {
         {leftTab === "transcript" && (
           <>
             <div className="px-4 py-2 bg-white shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
-              <p className="text-[10px] text-gray-400">Edit before approving</p>
+              <p className="text-[10px] text-gray-400">{locked ? "Approved note — read-only" : "Edit before approving"}</p>
             </div>
             <textarea
               value={transcript}
               onChange={e => setTranscript(e.target.value)}
-              className="flex-1 p-4 text-xs text-gray-700 leading-relaxed outline-none resize-none bg-white"
+              readOnly={locked}
+              className={`flex-1 p-4 text-xs text-gray-700 leading-relaxed outline-none resize-none ${locked ? "bg-gray-50" : "bg-white"}`}
               placeholder="No transcript recorded."
             />
           </>
@@ -287,12 +298,14 @@ export default function ReviewPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push(`/dashboard/consultation/${sessionId}`)}
-              className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"
-            >
-              ← Back to Recording
-            </button>
+            {!saved && (
+              <button
+                onClick={() => router.push(`/dashboard/consultation/${sessionId}`)}
+                className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"
+              >
+                ← Back to Recording
+              </button>
+            )}
             {saved && (
               <button
                 onClick={generateDischarge}
@@ -338,24 +351,28 @@ export default function ReviewPage() {
             value={typeof soap.subjective === "string" ? soap.subjective : ""}
             onChange={updateSoap("subjective")}
             rows={5}
+            readOnly={locked}
           />
           <SoapSection
             label="O — Objective (Examination & investigations)"
             value={typeof soap.objective === "string" ? soap.objective : ""}
             onChange={updateSoap("objective")}
             rows={5}
+            readOnly={locked}
           />
           <SoapSection
             label="A — Assessment (Diagnosis)"
             value={typeof soap.assessment === "string" ? soap.assessment : ""}
             onChange={updateSoap("assessment")}
             rows={4}
+            readOnly={locked}
           />
           <SoapSection
             label="P — Plan (Management)"
             value={typeof soap.plan === "string" ? soap.plan : ""}
             onChange={updateSoap("plan")}
             rows={5}
+            readOnly={locked}
           />
 
           {/* ICD-10 codes */}
@@ -369,44 +386,49 @@ export default function ReviewPage() {
             </div>
             <div className="px-4 pt-2 pb-1">
               {icdCodes.length === 0 && (
-                <p className="text-[10px] text-gray-400 py-2">No ICD-10 codes generated — add manually below</p>
+                <p className="text-[10px] text-gray-400 py-2">
+                  {locked ? "No ICD-10 codes recorded." : "No ICD-10 codes generated — add manually below"}
+                </p>
               )}
               {icdCodes.map((ic, i) => (
                 <IcdBadge
                   key={i}
                   code={ic.code}
                   description={ic.description}
+                  readOnly={locked}
                   onRemove={() => setIcdCodes(arr => arr.filter((_, j) => j !== i))}
                 />
               ))}
             </div>
             {/* Add ICD code */}
-            <div className="px-4 py-3 flex gap-2 items-center" style={{ borderTop: "1px dashed #d4d4d2" }}>
-              <input
-                value={newIcd.code}
-                onChange={e => setNewIcd(n => ({ ...n, code: e.target.value }))}
-                placeholder="I21.9"
-                className="w-20 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] font-mono"
-                style={{ border: "1.5px solid #d4d4d2" }}
-              />
-              <input
-                value={newIcd.description}
-                onChange={e => setNewIcd(n => ({ ...n, description: e.target.value }))}
-                placeholder="Description"
-                className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48]"
-                style={{ border: "1.5px solid #d4d4d2" }}
-              />
-              <button
-                onClick={() => {
-                  if (!newIcd.code.trim()) return;
-                  setIcdCodes(arr => [...arr, newIcd]);
-                  setNewIcd({ code: "", description: "" });
-                }}
-                className="px-2.5 py-1.5 text-xs bg-[#ffe4e6] text-[#9f1239] rounded-lg hover:bg-[#fecdd3] cursor-pointer font-medium"
-              >
-                Add
-              </button>
-            </div>
+            {!locked && (
+              <div className="px-4 py-3 flex gap-2 items-center" style={{ borderTop: "1px dashed #d4d4d2" }}>
+                <input
+                  value={newIcd.code}
+                  onChange={e => setNewIcd(n => ({ ...n, code: e.target.value }))}
+                  placeholder="I21.9"
+                  className="w-20 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] font-mono"
+                  style={{ border: "1.5px solid #d4d4d2" }}
+                />
+                <input
+                  value={newIcd.description}
+                  onChange={e => setNewIcd(n => ({ ...n, description: e.target.value }))}
+                  placeholder="Description"
+                  className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48]"
+                  style={{ border: "1.5px solid #d4d4d2" }}
+                />
+                <button
+                  onClick={() => {
+                    if (!newIcd.code.trim()) return;
+                    setIcdCodes(arr => [...arr, newIcd]);
+                    setNewIcd({ code: "", description: "" });
+                  }}
+                  className="px-2.5 py-1.5 text-xs bg-[#ffe4e6] text-[#9f1239] rounded-lg hover:bg-[#fecdd3] cursor-pointer font-medium"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Prescription */}
@@ -423,6 +445,7 @@ export default function ReviewPage() {
                   <RxRow
                     key={i}
                     {...rx}
+                    readOnly={locked}
                     onRemove={() => setPrescription(arr => arr.filter((_, j) => j !== i))}
                   />
                 ))}

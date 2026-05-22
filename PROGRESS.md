@@ -1,6 +1,6 @@
 # StobaeusVoice — Progress Tracker
 
-## Status: Admin Module Complete · Doctor Module Next
+## Status: Dictation + AI Extraction Complete Across All Workflows · IPD Rebuild Next
 
 ---
 
@@ -113,52 +113,128 @@
 
 ### 2. Echo / Cath Lab Dictation
 - [x] Template selector tiles — Echo / Cath / Stress Test / Holter
-- [x] `/dashboard/echo` — report list + template selector
+- [x] `/dashboard/echo` — report list + template selector with patient picker before draft creation
 - [x] `/dashboard/echo/[reportId]` — structured form (per template)
   - Echo: LV (EF%, LVEDD/LVESD, RWMA, LVH), RV, all valves (MR/MS/AR/AS/TR with grades + gradients), LA/RA, pericardium, IVC
-  - Cath: access, dominance, LMCA/LAD/LCX/RCA stenosis per segment, TIMI flow, LVEDP, aortic BP, LV EF, recommendation (PCI/CABG/Medical)
+  - Cath: access, dominance, LMCA/LAD/LCX/RCA stenosis per segment, TIMI flow, LVEDP, aortic BP, LV EF, recommendation (PCI/CABG/Medical), stent details, complications multi-select
   - Stress Test: protocol, HR/BP at baseline + peak, % MPHR (auto-calculated), ST changes + depth + leads, symptoms, Duke score, result
   - Holter: duration, dominant rhythm, AF burden, HR range, VPCs (count/burden/couplets/VT), SVT, longest pause, AV block, BBB
-- [x] Dictation widget — mic → Whisper → appends to impression field
-- [x] "Generate via AI" — GPT-4o reads structured findings + patient clinical context → impression + ICD-10 codes (no PII)
+- [x] **Live Deepgram dictation** (Nova-3 `language=multi`, Tamil + English) — replaced Whisper batch; transcript appears live in target field
+- [x] **Template-aware AI extraction** — `Generate via AI` now fills every structured field (dropdowns, numbers, text) AND impression AND ICD-10 codes for ALL 4 templates. Per-template field schemas in `backend/services/echo_generation.py`; dropdown options enforced verbatim; validator drops invalid values post-LLM.
 - [x] Autosave on field change (1.5s debounce)
 - [x] "Finalize Report" → status = final, redirect to list
-- [x] Backend: `echo_reports` table, `GET/POST /echo/reports`, `PATCH`, `/finalize`, `/generate-impression`, `/dictate`
 
-### 3. Prescription Manager
-- [ ] Drug list with cardiac interaction checker
-- [ ] WhatsApp / Print / ABHA send
+### 3. Prescription Manager (COMPLETE)
+- [x] `/dashboard/prescriptions` — list + filter, status badges, WhatsApp-sent timestamps
+- [x] `/dashboard/prescriptions/[rxId]` — diagnosis, medications, notes
+- [x] 61-drug Indian cardiac catalogue with category + default dose/freq, drug search w/ custom add
+- [x] **Cardiac interaction checker** — 14 rules covering triple antithrombotic, warfarin+amiodarone, digoxin+amiodarone, BB+verapamil, ACEi+spironolactone (hyperK), NOAC+antiplatelet, statin+amiodarone (myopathy). High/moderate severity. Triple-therapy suppresses redundant subset warnings.
+- [x] **Dictation panel + live transcript review** (right column) — doctor dictates, transcript appears live, can be edited
+- [x] **Generate from Dictation** — GPT-4o extracts `{diagnosis, drugs[], notes}` from transcript; drug names canonicalised against the 61-drug catalog; freq mapped to `OD/BD/TDS/QID/HS/SOS/...`; duration mapped to `7 days/.../Lifelong`; merges with existing drugs (no overwrite). Backend: `services/prescription_generation.py` + `POST /prescriptions/{rx_id}/generate-from-dictation`.
+- [x] **Confirm & Lock** — `POST /prescriptions/{rx_id}/confirm` sets `status=confirmed`; PATCH returns 409 once locked; frontend disables every editable control + hides dictation/confirm cards + shows green `✓ Confirmed` badge
+- [x] **WhatsApp send** — backend formats Rx as text, frontend rewrites `wa.me` → `whatsapp://send?phone=…` desktop deep link so WhatsApp Desktop opens to the patient's registered number with prescription pre-filled. Print-to-PDF dialog triggers alongside so doctor can attach PDF manually (WhatsApp URL API does not allow auto-attach).
+- [x] **Print** — fixed broken `visibility: hidden/visible` rule that couldn't override `display:none`; print container now flips to `display:block` in `@media print` with `@page` size rule.
 
-### 4. Cardiac Nurse Module
-- [ ] Nurse station — bed grid, vitals logging, drip rates, handoff notes
-- [ ] Voice log per bed
+### 4. Radiology (COMPLETE)
+- [x] `/dashboard/radiology` — 6 templates (CXR, CT Cardiac, CT PA, Cardiac MRI, Lipid Profile, HbA1c) with template-stamped cards
+- [x] **Patient-first flow** — clicking any template opens `PatientSearchModal`; existing patient + template combo opens the existing draft (no duplicates); anonymous always creates a new draft
+- [x] **Template switching preserves patient** — chip click on detail page saves current edits, looks up patient + new template, opens existing report or creates fresh draft for same patient. Anonymous reports get fresh drafts per template.
+- [x] Per-field live dictation + global impression dictation (live Deepgram)
+- [x] AI impression generation (GPT-4o) with template label in prompt
+- [x] `/dashboard/radiology/[reportId]` — structured fields per template + DICOM placeholder
 
-### 5. Clinical Alerts
-- [ ] Drug interaction flags (warfarin + aspirin, etc.)
-- [ ] Cardiac contraindication warnings
-- [ ] ABDM compliance alerts
+### 5. Active Consultation (UPDATED)
+- [x] Live Deepgram WS dictation streaming straight into the transcript pane (was already live; still good)
+- [x] Tamil → English transcript normalisation before SOAP gen
+- [x] Follow-up detection (180d window) + "Previous Visit" tab on review page
+- [x] Auto-create Prescription record on consultation approve
 
-### 6. Voice Agent (Hands-free ward round)
-- [ ] Large mic interface
-- [ ] Voice command parsing — update vitals, show reports, schedule
+### 6. Nurse + IPD (PARTIAL — IPD to be rebuilt next, see below)
+- [x] Nurse station — 12-bed grid, vitals logging form, drip rates, regex vitals parser
+- [x] Voice log per bed — **live Deepgram** transcription populates the voice-text box; existing "Parse & Log" extracts vitals via regex
+- [x] IPD Ward Round basic page — bed grid (driven by Nurse Station occupancy), Status/Assessment/Plan dictation
+- [ ] **Full IPD workflow rebuild** — admission, bed tiers, daily round, bed transfer, discharge linkage (see "Next: IPD Flow Rebuild" below)
 
-### 7. Voice Bots (Phase 2)
-- [ ] Patient Voice Bot — post-discharge cardiac symptom monitoring
-- [ ] Appointment Bot — cardiology slot booking (multilingual)
+### 7. Discharge Summary (COMPLETE)
+- [x] `/dashboard/discharge/[summaryId]` — sections + meds + ICD codes
+- [x] AI generation from SOAP + ICD + meds + echo impressions
+- [x] WhatsApp send (patient-friendly format)
 
-### 8. Hospital Admin Dashboard
-- [ ] Notes by cardiologist, compliance %, ABDM milestones, cost savings
-- [ ] Doctor leaderboard
+### 8. Voice Bot — placeholder records only (no real call engine)
+- [x] `/dashboard/voice-bot` — list eligible patients, trigger/cancel call records
+- [ ] Actual outbound call infrastructure (Phase 2)
 
-### 9. Settings
-- [ ] Profile, EMR integrations, language, privacy
+### 9. Appointments (COMPLETE)
+- [x] `/dashboard/appointments` — slot picker, 14 slots/day, doctor + patient assignment
 
-### 10. Production Readiness
-- [ ] Swap OpenAI → self-hosted Llama 3.1 70B Q4 on Azure A100
-- [ ] Swap SQLite → PostgreSQL on Azure India South
-- [ ] Audio pipeline: in-memory only, no blob storage
+### 10. Clinical Alerts (PARTIAL)
+- [x] `/dashboard/alerts` — pending consultations + draft echo reports needing impression
+- [x] Drug interaction flags already in prescription page (see §3)
+- [ ] Cardiac contraindication warnings, ABDM compliance alerts
+
+### 11. Hospital Admin Dashboard (DATA WIRED)
+- [x] `/admin` — overview, users, settings
+- [x] `/consultations/admin-stats` — month totals, by-doctor leaderboard, cost savings (₹500/note × approved), ABDM milestone tracker
+
+### 12. Production Readiness
+- [x] PostgreSQL via `DATABASE_URL` env var (was SQLite, switched per prior commit `69c2e33`)
+- [x] DPDP access audit log (`AccessLog` table) — who viewed/exported which patient
+- [x] Record ownership enforcement (`assert_owner`) on every detail endpoint
+- [x] Audio never written to disk — in-memory only via OpenAI / streamed over WS to Deepgram
+- [ ] Swap OpenAI → self-hosted Llama 3.1 70B Q4 on Azure A100 (Phase 2)
+- [ ] Swap STT → self-hosted Whisper on Azure A10 (Phase 2)
 - [ ] ABDM FHIR R4 output format
-- [ ] DPDP Act 2023 compliance audit
+- [ ] DPDP Act 2023 full compliance audit
+
+---
+
+## 🛠 Next: IPD Flow Rebuild
+
+Current IPD is a stub — it depends on the nurse first occupying a bed, has no admission concept, no bed tiers (CCU/HDU/Ward/Private), no transfer between tiers, and no discharge link. Indian cardiology IPDs actually work like this:
+
+```
+ER / OPD → CCU (1:1, ~₹28k/day) → HDU (2:1) → Step-down / Ward (~₹22k/day) → Discharge
+```
+
+Research summary (May 2026): paper case sheets take 10–12 min today; Digital IPD claims 2–3 min with templates. Nurses spend hours re-transcribing numbers. Apollo Delhi cut STEMI door-to-cath time by half with a paperwork-light direct-to-cath protocol. 66% of providers using AI tools for documentation in 2025. Per-bed cost delta CCU vs ward = ~₹6k/day — doctors *want* to move patients down but the paper trail is the bottleneck.
+
+### Build phases (in priority order)
+
+**Phase 1 — Admit Patient flow (highest ROI, build first)**
+- New `Admission` table: `admission_id, patient_id, bed_id, bed_tier (CCU/HDU/Ward/Private), admitted_at, admission_note (JSON), admitting_doctor_id, icd_codes, status (active/discharged)`
+- `IpdNote` gets `admission_id` foreign key — round notes link to a single admission episode
+- New "+ Admit Patient" button on IPD Ward Round page → modal flow:
+  1. `PatientSearchModal` (reused) — existing / register new / PT-ANON (STEMI fast-track)
+  2. Bed tier picker → specific bed picker (tag existing B01–B12 with tiers; small hospitals keep flat list)
+  3. **Dictation widget** — doctor speaks: chief complaint, HOPI, exam, provisional Dx, admit orders
+  4. **AI extraction** (new `admission_generation.py` service) — GPT-4o extracts: `chief_complaint, hopi, examination, provisional_dx, icd_codes, admit_orders (drugs/monitoring/NPO/access)`
+  5. Review + Approve → patient occupies bed, ready for daily rounds
+- Backend: `POST /ipd/admissions`, `GET /ipd/admissions/{id}`, `POST /ipd/admissions/{id}/generate` (dictation → fields)
+
+**Phase 2 — Daily Progress Round enhancements**
+- When a bed is selected, show admission summary + collapsed timeline of prior progress notes
+- "Generate today's note" — GPT-4o reads latest vitals + prior notes → drafts S/O/A/P
+- Wire existing IPD Ward Round dictation to admission episode
+
+**Phase 3 — Bed Transfer**
+- One-click escalate/step-down: select target tier + bed → records the move with timestamp + one-line reason on patient timeline
+
+**Phase 4 — Discharge from IPD**
+- "Discharge" button on ward-round patient panel
+- Pre-fills existing discharge summary builder from all SOAP notes + admission note + final progress note
+- Auto-creates take-home prescription via existing flow
+- Books follow-up appointment via existing Appointments page
+- Marks bed free; admission status → `discharged`
+
+### Open design questions (decide before Phase 1)
+1. **Bed tiers**: tag the existing 12 beds with a tier each, or expand to distinct CCU/HDU/Ward bed pools? Tagging is much less work and adapts to small hospitals.
+2. **Admission note structure**: full S/O/A/P + provisional Dx + admit orders (richest), or simpler 3-field admission (chief complaint, provisional Dx, admit plan) for V1?
+3. **STEMI fast-track**: separate "STEMI Admit" button that skips straight to PT-ANON + cath lab pre-orders? Or keep that out of V1?
+
+### Out of scope for IPD rebuild
+- Self-hosted LLM / STT (Phase 2 production readiness)
+- ABDM FHIR R4 output (separate compliance workstream)
+- DICOM/PACS integration (separate, deferred per CLAUDE.md until first hospital request)
 
 ---
 
@@ -219,8 +295,12 @@ npm run dev
 | `backend/routers/auth.py` | JWT login, user CRUD (admin) |
 | `backend/services/transcription.py` | Whisper STT — audio never saved |
 | `backend/services/note_generation.py` | GPT-4o SOAP note — no PII |
-| `backend/services/echo_generation.py` | GPT-4o impression from structured findings — no PII |
-| `backend/routers/echo.py` | Echo/Cath/Stress/Holter report CRUD + AI impression + dictation |
+| `backend/services/echo_generation.py` | GPT-4o **template-aware extraction** (echo/cath/stress/holter): fills structured fields + impression + ICD codes from dictation. Per-template schemas with verbatim dropdown options + post-LLM validator. |
+| `backend/services/prescription_generation.py` | GPT-4o prescription extraction: canonicalises drug names against 61-drug Indian cardiac catalog; freq/duration mapped to allowed lists |
+| `backend/routers/echo.py` | Echo/Cath/Stress/Holter report CRUD + AI extraction; generation merges findings into existing record |
+| `backend/routers/prescriptions.py` | Rx CRUD + `generate-from-dictation` + `confirm` (lock) + WhatsApp link; PATCH 409s once confirmed |
+| `frontend/lib/useLiveDictation.ts` | Live Deepgram WS hook + `useLiveAppend` helper used by every dictation surface |
+| `frontend/components/PatientSearchModal.tsx` | Reusable patient picker — search by name/ABHA/MRN/PT-ID, anonymous option |
 | `backend/seed_admin.py` | Create first admin user |
 | `frontend/lib/auth-context.tsx` | JWT auth state (localStorage token) |
 | `frontend/lib/api.ts` | Backend API client |

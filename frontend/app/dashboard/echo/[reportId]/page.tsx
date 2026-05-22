@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { useLiveAppend } from "@/lib/useLiveDictation";
+import PatientSearchModal from "@/components/PatientSearchModal";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -523,63 +525,28 @@ function IcdRow({ code, description, onRemove }: { code: string; description: st
   );
 }
 
-// ── Dictation widget ───────────────────────────────────────────────
+// ── Dictation widget (live Deepgram) ───────────────────────────────
 
-function DictationWidget({ reportId, onTranscript }: { reportId: string; onTranscript: (t: string) => void }) {
-  const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
-  const mediaRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  const start = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      mediaRef.current = mr;
-      chunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.start();
-      setRecording(true);
-    } catch { /* mic denied */ }
-  };
-
-  const stop = useCallback(async () => {
-    const mr = mediaRef.current;
-    if (!mr) return;
-    mr.onstop = async () => {
-      mr.stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-      if (blob.size > 0) {
-        setTranscribing(true);
-        try {
-          const res = await api.dictateEchoImpression(reportId, blob);
-          if (res.transcript) onTranscript(res.transcript);
-        } catch { /* handled by parent */ }
-        finally { setTranscribing(false); }
-      }
-    };
-    mr.stop();
-    setRecording(false);
-  }, [reportId, onTranscript]);
-
+function DictationWidget({ value, onValue }: { value: string; onValue: (next: string) => void }) {
+  const { recording, error, toggle } = useLiveAppend(value, onValue, "\n");
   return (
-    <button
-      onClick={recording ? stop : start}
-      disabled={transcribing}
-      className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50 ${
-        recording
-          ? "bg-red-50 text-red-600 border border-red-200"
-          : "bg-[#ffe4e6] text-[#9f1239] hover:bg-[#fecdd3]"
-      }`}
-    >
-      {transcribing ? (
-        <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" /> Transcribing…</>
-      ) : recording ? (
-        <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" /> Stop</>
-      ) : (
-        <><Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2" size={11} /> Dictate</>
-      )}
-    </button>
+    <div className="flex flex-col items-end">
+      <button
+        onClick={toggle}
+        className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer ${
+          recording
+            ? "bg-red-50 text-red-600 border border-red-200"
+            : "bg-[#ffe4e6] text-[#9f1239] hover:bg-[#fecdd3]"
+        }`}
+      >
+        {recording ? (
+          <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" /> Stop</>
+        ) : (
+          <><Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2" size={11} /> Dictate</>
+        )}
+      </button>
+      {error && <p className="text-[9px] text-red-500 mt-1 max-w-[180px] text-right">{error}</p>}
+    </div>
   );
 }
 
@@ -610,9 +577,20 @@ export default function EchoReportPage() {
   const [finalizing, setFinalizing] = useState(false);
   const [finalized, setFinalized] = useState(false);
   const [error, setError] = useState("");
+  const [showPatientModal, setShowPatientModal] = useState(false);
 
   // Autosave timer ref
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const assignPatient = async (patientId: string | null) => {
+    setShowPatientModal(false);
+    try {
+      const res = await api.setEchoReportPatient(reportId, patientId);
+      setData(d => d ? { ...d, patient_id: res.patient_id, patient_display: res.patient_display } : d);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to assign patient");
+    }
+  };
 
   useEffect(() => {
     api.getEchoReport(reportId).then(d => {
@@ -651,9 +629,16 @@ export default function EchoReportPage() {
     setGenerating(true); setError("");
     try {
       const res = await api.generateEchoImpression(reportId);
+      // Backend returns the full merged findings — replace local state so any
+      // dropdowns/numbers the AI extracted from the dictation appear in the form.
+      if (res.findings && typeof res.findings === "object") {
+        setFindings(res.findings as Record<string, string>);
+      }
       if (res.impression) setImpression(res.impression);
       if (res.icd_codes) setIcdCodes(res.icd_codes);
-    } catch { setError("Generation failed — check OpenAI key in backend"); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Generation failed — check the backend logs.");
+    }
     finally { setGenerating(false); }
   };
 
@@ -704,7 +689,17 @@ export default function EchoReportPage() {
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
-                {data.patient_display || data.patient_id || "Anonymous"} · {reportId.slice(0, 8)}
+                {finalized ? (
+                  <span>{data.patient_display || data.patient_id || "Anonymous"}</span>
+                ) : (
+                  <button
+                    onClick={() => setShowPatientModal(true)}
+                    className="text-[#e11d48] font-medium hover:underline cursor-pointer"
+                  >
+                    {data.patient_display || data.patient_id || "+ Assign patient"}
+                  </button>
+                )}
+                {" · "}{reportId.slice(0, 8)}
               </p>
             </div>
           </div>
@@ -744,10 +739,7 @@ export default function EchoReportPage() {
         {/* Impression */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           <h3 className="font-hand text-base font-bold text-gray-900">Impression</h3>
-          <DictationWidget
-            reportId={reportId}
-            onTranscript={t => setImpression(prev => prev ? `${prev}\n${t}` : t)}
-          />
+          <DictationWidget value={impression} onValue={setImpression} />
         </div>
 
         <div className="px-4 py-3 flex-1 flex flex-col gap-3 overflow-auto">
@@ -818,6 +810,14 @@ export default function EchoReportPage() {
           </div>
         </div>
       </div>
+
+      {showPatientModal && (
+        <PatientSearchModal
+          title="Assign patient to this report"
+          onSelect={assignPatient}
+          onClose={() => setShowPatientModal(false)}
+        />
+      )}
     </div>
   );
 }

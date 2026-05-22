@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import { useLiveAppend } from "@/lib/useLiveDictation";
 
 interface WardPatient {
   bed_id: string;
@@ -45,57 +46,19 @@ function Icon({ d, d2, size = 14 }: { d: string; d2?: string; size?: number }) {
   );
 }
 
-function VoiceBtn({ onTranscript }: { onTranscript: (t: string) => void }) {
-  const [rec, setRec] = useState(false);
-  const [working, setWorking] = useState(false);
-  const mrRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  const start = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      mrRef.current = mr;
-      chunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.start();
-      setRec(true);
-    } catch { /* mic denied */ }
-  };
-
-  const stop = useCallback(async () => {
-    const mr = mrRef.current;
-    if (!mr) return;
-    mr.onstop = async () => {
-      mr.stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-      if (blob.size > 0) {
-        setWorking(true);
-        try {
-          const res = await api.dictateIpdNote(blob);
-          if (res.transcript) onTranscript(res.transcript);
-        } catch { /* silent */ }
-        finally { setWorking(false); }
-      }
-    };
-    mr.stop();
-    setRec(false);
-  }, [onTranscript]);
-
+function VoiceBtn({ value, onValue }: { value: string; onValue: (v: string) => void }) {
+  const { recording, toggle } = useLiveAppend(value, onValue);
   return (
     <button
-      onClick={rec ? stop : start}
-      disabled={working}
-      title={rec ? "Stop dictating" : "Dictate"}
-      className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-lg transition cursor-pointer disabled:opacity-50 ${
-        rec
+      onClick={toggle}
+      title={recording ? "Stop dictating" : "Dictate"}
+      className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-lg transition cursor-pointer ${
+        recording
           ? "bg-red-50 text-red-500 border border-red-200"
           : "text-gray-400 hover:text-[#9f1239] hover:bg-[#ffe4e6]"
       }`}
     >
-      {working ? (
-        <div className="w-2.5 h-2.5 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
-      ) : rec ? (
+      {recording ? (
         <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0 block" /> Stop</>
       ) : (
         <><Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={10} /> Mic</>
@@ -311,7 +274,7 @@ export default function IpdPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Clinical Status</label>
-                  <VoiceBtn onTranscript={t => setStatusText(s => s ? `${s} ${t}` : t)} />
+                  <VoiceBtn value={statusText} onValue={setStatusText} />
                 </div>
                 <textarea
                   value={statusText}
@@ -326,7 +289,7 @@ export default function IpdPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Assessment</label>
-                  <VoiceBtn onTranscript={t => setAssessment(s => s ? `${s} ${t}` : t)} />
+                  <VoiceBtn value={assessment} onValue={setAssessment} />
                 </div>
                 <textarea
                   value={assessment}
@@ -341,7 +304,7 @@ export default function IpdPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Plan</label>
-                  <VoiceBtn onTranscript={t => setPlan(s => s ? `${s} ${t}` : t)} />
+                  <VoiceBtn value={plan} onValue={setPlan} />
                 </div>
                 <textarea
                   value={plan}

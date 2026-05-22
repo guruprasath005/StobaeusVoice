@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db, Prescription, Patient
+from database import get_db, Prescription, Patient, PatientClinical
 from routers.auth import get_current_user, assert_owner, User
+from services.prescription_generation import generate_prescription_from_dictation
 from audit import log_access
 from pydantic import BaseModel
 from typing import Optional, List
@@ -61,6 +62,10 @@ class UpdateRxRequest(BaseModel):
     diagnosis: Optional[str] = None
     drugs: Optional[List[dict]] = None
     notes: Optional[str] = None
+
+
+class GenerateRxRequest(BaseModel):
+    transcript: str
 
 
 # ── Routes ───────────────────────────────────────────────────────────
@@ -137,6 +142,9 @@ def update_prescription(rx_id: str, req: UpdateRxRequest, db: Session = Depends(
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
     assert_owner(rx.doctor_id, current_user)
+    # Once confirmed, the prescription is locked — no further edits.
+    if rx.status in ("confirmed", "sent"):
+        raise HTTPException(status_code=409, detail="Prescription is confirmed and cannot be edited")
     if req.diagnosis is not None:
         rx.diagnosis = req.diagnosis
     if req.drugs is not None:
@@ -145,6 +153,53 @@ def update_prescription(rx_id: str, req: UpdateRxRequest, db: Session = Depends(
         rx.notes = req.notes
     db.commit()
     return {"status": "ok"}
+
+
+@router.post("/{rx_id}/generate-from-dictation")
+async def generate_from_dictation(
+    rx_id: str,
+    body: GenerateRxRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Run GPT-4o on the doctor's dictation and return extracted diagnosis +
+    drugs + notes. The frontend merges these into the form."""
+    rx = db.query(Prescription).filter(Prescription.rx_id == rx_id).first()
+    if not rx:
+        raise HTTPException(404, "Prescription not found")
+    assert_owner(rx.doctor_id, current_user)
+    if rx.status in ("confirmed", "sent"):
+        raise HTTPException(409, "Prescription is confirmed and cannot be edited")
+
+    # Clinical context (no PII) for the LLM prompt — only if the rx is tied to a patient.
+    clinical = None
+    if rx.patient_id and not rx.patient_id.startswith("PT-ANON"):
+        pc = db.query(PatientClinical).filter(PatientClinical.patient_id == rx.patient_id).first()
+        if pc:
+            clinical = {
+                "age": pc.age,
+                "gender_code": pc.gender_code,
+                "conditions": pc.conditions or [],
+                "medications": pc.medications or [],
+                "allergies": pc.allergies or [],
+            }
+
+    return await generate_prescription_from_dictation(body.transcript, clinical)
+
+
+@router.post("/{rx_id}/confirm")
+def confirm_prescription(rx_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Lock the prescription — no further edits allowed via PATCH."""
+    rx = db.query(Prescription).filter(Prescription.rx_id == rx_id).first()
+    if not rx:
+        raise HTTPException(404, "Prescription not found")
+    assert_owner(rx.doctor_id, current_user)
+    if not (rx.drugs or []):
+        raise HTTPException(400, "Cannot confirm a prescription with no medications")
+    rx.status = "confirmed"
+    db.commit()
+    log_access(db, current_user.id, "approve", "prescription", rx_id, rx.patient_id)
+    return {"status": rx.status}
 
 
 @router.post("/{rx_id}/send-whatsapp")

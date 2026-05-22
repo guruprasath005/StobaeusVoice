@@ -3,61 +3,24 @@
 import { useState, useEffect, useCallback, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useLiveAppend } from "@/lib/useLiveDictation";
 
-// ── Per-field dictation button ─────────────────────────────────────
+// ── Per-field live-dictation button (Deepgram streaming) ──────────
 
-function FieldMicBtn({ reportId, onTranscript, disabled }: {
-  reportId: string; onTranscript: (t: string) => void; disabled: boolean;
+function FieldMicBtn({ value, onChange, disabled }: {
+  value: string; onChange: (v: string) => void; disabled: boolean;
 }) {
-  const [rec, setRec] = useState(false);
-  const [working, setWorking] = useState(false);
-  const mrRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  const start = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      mrRef.current = mr;
-      chunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.start();
-      setRec(true);
-    } catch { /* mic denied */ }
-  };
-
-  const stop = useCallback(async () => {
-    const mr = mrRef.current;
-    if (!mr) return;
-    mr.onstop = async () => {
-      mr.stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-      if (blob.size > 0) {
-        setWorking(true);
-        try {
-          const res = await api.dictateRadiologyField(reportId, blob);
-          if (res.transcript) onTranscript(res.transcript);
-        } catch { /* silent */ }
-        finally { setWorking(false); }
-      }
-    };
-    mr.stop();
-    setRec(false);
-  }, [reportId, onTranscript]);
-
+  const { recording, toggle } = useLiveAppend(value, onChange);
   if (disabled) return null;
   return (
     <button
-      onClick={rec ? stop : start}
-      disabled={working}
-      title={rec ? "Stop dictating" : "Dictate this field"}
-      className={`w-5 h-5 flex items-center justify-center rounded transition cursor-pointer disabled:opacity-50 shrink-0 ${
-        rec ? "text-red-500" : "text-gray-300 hover:text-[#e11d48]"
+      onClick={toggle}
+      title={recording ? "Stop dictating" : "Dictate this field"}
+      className={`w-5 h-5 flex items-center justify-center rounded transition cursor-pointer shrink-0 ${
+        recording ? "text-red-500" : "text-gray-300 hover:text-[#e11d48]"
       }`}
     >
-      {working ? (
-        <div className="w-3 h-3 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
-      ) : rec ? (
+      {recording ? (
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse block" />
       ) : (
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -228,8 +191,8 @@ function useTimer(running: boolean) {
 
 // ── Inline-editable field row ──────────────────────────────────────
 
-function FieldRow({ label, value, onChange, disabled, reportId }: {
-  label: string; value: string; onChange: (v: string) => void; disabled: boolean; reportId: string;
+function FieldRow({ label, value, onChange, disabled }: {
+  label: string; value: string; onChange: (v: string) => void; disabled: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -237,11 +200,6 @@ function FieldRow({ label, value, onChange, disabled, reportId }: {
   useEffect(() => {
     if (editing) ref.current?.focus();
   }, [editing]);
-
-  const appendTranscript = useCallback((t: string) => {
-    onChange(value ? `${value} ${t}` : t);
-    setEditing(true);
-  }, [value, onChange]);
 
   return (
     <div
@@ -252,7 +210,7 @@ function FieldRow({ label, value, onChange, disabled, reportId }: {
         <span className="text-[9.5px] font-semibold text-gray-400 uppercase tracking-widest leading-tight shrink-0">
           {label}
         </span>
-        <FieldMicBtn reportId={reportId} onTranscript={appendTranscript} disabled={disabled} />
+        <FieldMicBtn value={value} onChange={onChange} disabled={disabled} />
       </div>
       <div>
         {editing && !disabled ? (
@@ -392,11 +350,10 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
   const [finalizing, setFinalizing] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
-  const [dictating, setDictating] = useState(false);
-  const [dictTranscribing, setDictTranscribing] = useState(false);
+  const [switching, setSwitching] = useState<string | null>(null);
+  const { recording: dictating, toggle: toggleGlobalDictation, error: dictError } =
+    useLiveAppend(impression, setImpression, "\n");
   const dictTimer = useTimer(dictating);
-  const dictMrRef = useRef<MediaRecorder | null>(null);
-  const dictChunksRef = useRef<Blob[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -444,6 +401,30 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
     finally { setAiLoading(false); }
   };
 
+  // Switching templates keeps the same patient. If they already have a report
+  // of the target template, open it; otherwise spin up a fresh draft. Anonymous
+  // reports (patient_id = null) always get a new draft per template.
+  const switchTemplate = async (targetTemplate: string) => {
+    if (!report || targetTemplate === report.template || switching) return;
+    setSwitching(targetTemplate);
+    try {
+      // Save any unsaved edits on the current report before navigating away.
+      await api.saveRadiologyReport(reportId, findings, impression || undefined, icdCodes).catch(() => {});
+
+      if (report.patient_id) {
+        const existing = await api.listRadiologyReports(report.patient_id, targetTemplate);
+        if (Array.isArray(existing) && existing.length > 0) {
+          router.push(`/dashboard/radiology/${existing[0].report_id}`);
+          return;
+        }
+      }
+      const res = await api.createRadiologyReport(targetTemplate, report.patient_id ?? undefined);
+      if (res.report_id) router.push(`/dashboard/radiology/${res.report_id}`);
+    } finally {
+      setSwitching(null);
+    }
+  };
+
   const toggleIcd = (icd: { code: string; description: string }) => {
     setIcdCodes(prev =>
       prev.some(c => c.code === icd.code)
@@ -454,37 +435,6 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
 
   const setField = (key: string) => (val: string) =>
     setFindings(prev => ({ ...prev, [key]: val }));
-
-  const startGlobalDictation = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      dictMrRef.current = mr;
-      dictChunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) dictChunksRef.current.push(e.data); };
-      mr.start();
-      setDictating(true);
-    } catch { /* mic denied */ }
-  };
-
-  const stopGlobalDictation = useCallback(async () => {
-    const mr = dictMrRef.current;
-    if (!mr) return;
-    mr.onstop = async () => {
-      mr.stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(dictChunksRef.current, { type: mr.mimeType });
-      if (blob.size > 0) {
-        setDictTranscribing(true);
-        try {
-          const res = await api.dictateRadiologyField(reportId, blob);
-          if (res.transcript) setImpression(prev => prev ? `${prev}\n${res.transcript}` : res.transcript);
-        } catch { /* silent */ }
-        finally { setDictTranscribing(false); }
-      }
-    };
-    mr.stop();
-    setDictating(false);
-  }, [reportId]);
 
   if (!report) {
     return (
@@ -557,16 +507,28 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
       >
         {ALL_TEMPLATES.map(t => {
           const active = t.id === report.template;
+          const isSwitching = switching === t.id;
           return (
             <button
               key={t.id}
-              onClick={() => !active && router.push("/dashboard/radiology")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition cursor-pointer shrink-0"
+              onClick={() => !active && switchTemplate(t.id)}
+              disabled={!!switching}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition cursor-pointer shrink-0 disabled:opacity-60"
               style={active
                 ? { background: "#e11d48", color: "#fff", border: "1.5px solid #e11d48" }
                 : { background: "#fff", color: "#374151", border: "1.25px solid #1a1a1a" }
               }
+              title={
+                active
+                  ? "Current report"
+                  : report.patient_id
+                    ? `Switch to ${t.label} for ${report.patient_name || report.patient_id}`
+                    : `New ${t.label} (anonymous)`
+              }
             >
+              {isSwitching && (
+                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+              )}
               {t.label}
             </button>
           );
@@ -601,17 +563,15 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#15803D]">Final</span>
               )}
               <button
-                onClick={dictating ? stopGlobalDictation : startGlobalDictation}
-                disabled={dictTranscribing || isFinal}
+                onClick={toggleGlobalDictation}
+                disabled={isFinal}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition cursor-pointer disabled:opacity-50 ${
                   dictating
                     ? "bg-red-50 text-red-600"
                     : "bg-gray-100 text-gray-500 hover:bg-[#ffe4e6] hover:text-[#9f1239]"
                 }`}
               >
-                {dictTranscribing ? (
-                  <><div className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" /> transcribing…</>
-                ) : dictating ? (
+                {dictating ? (
                   <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" /> {dictTimer} · stop</>
                 ) : (
                   <><Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={10} /> dictate impression</>
@@ -630,7 +590,6 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
                   value={findings[f.key] || ""}
                   onChange={setField(f.key)}
                   disabled={isFinal}
-                  reportId={reportId}
                 />
               ))}
             </div>
@@ -699,21 +658,22 @@ export default function RadiologyReportPage({ params }: { params: Promise<{ repo
             <Waveform active={dictating} />
             <div className="flex items-center gap-2">
               <button
-                onClick={dictating ? stopGlobalDictation : startGlobalDictation}
-                disabled={dictTranscribing || isFinal}
+                onClick={toggleGlobalDictation}
+                disabled={isFinal}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition cursor-pointer disabled:opacity-50 ${
                   dictating ? "bg-red-50 text-red-500" : "hover:bg-gray-100 text-gray-600"
                 }`}
                 style={{ border: `1.25px solid ${dictating ? "#EF4444" : "#1a1a1a"}` }}
                 title={dictating ? "Stop dictating" : "Start dictating impression"}
               >
-                {dictTranscribing
-                  ? <div className="w-3.5 h-3.5 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
-                  : dictating
-                    ? <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse block" />
-                    : <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={14} />
+                {dictating
+                  ? <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse block" />
+                  : <Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" d2="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={14} />
                 }
               </button>
+              {dictError && (
+                <span className="text-[9px] text-red-500 max-w-[140px] truncate">{dictError}</span>
+              )}
             </div>
           </div>
         </div>
