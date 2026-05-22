@@ -253,14 +253,104 @@ export const api = {
       body: JSON.stringify({ text }),
     }).then(r => r.json()),
 
+  // IPD: catalogue (wards/tiers/beds for Admit modal)
+  getIpdCatalogue: () =>
+    apiFetch(`${BASE}/ipd/catalogue`).then(r => r.json()),
+
+  // IPD: admissions
+  createAdmission: async (data: { patient_id?: string | null; bed_id: string; mode?: "standard" | "stemi_fast_track" }) => {
+    const res = await apiFetch(`${BASE}/ipd/admissions`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body;
+  },
+
+  listAdmissions: (status: string = "active") =>
+    apiFetch(`${BASE}/ipd/admissions?status=${status}`).then(r => r.json()),
+
+  getAdmission: (admissionId: string) =>
+    apiFetch(`${BASE}/ipd/admissions/${admissionId}`).then(r => r.json()),
+
+  generateAdmissionNote: async (admissionId: string, transcript: string) => {
+    const res = await apiFetch(`${BASE}/ipd/admissions/${admissionId}/generate`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body;
+  },
+
+  updateAdmission: (admissionId: string, data: Record<string, unknown>) =>
+    apiFetch(`${BASE}/ipd/admissions/${admissionId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(r => r.json()),
+
+  dischargeAdmission: (admissionId: string) =>
+    apiFetch(`${BASE}/ipd/admissions/${admissionId}/discharge`, { method: "POST" }).then(r => r.json()),
+
+  transferAdmission: async (admissionId: string, data: { to_bed_id: string; reason?: string }) => {
+    const res = await apiFetch(`${BASE}/ipd/admissions/${admissionId}/transfer`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body as { ok: boolean; transfer_id: string; direction: "step_up" | "step_down" | "lateral"; admission: Record<string, unknown> };
+  },
+
+  listTransfers: (admissionId: string) =>
+    apiFetch(`${BASE}/ipd/admissions/${admissionId}/transfers`).then(r => r.json()),
+
+  // Admin: IPD catalogue CRUD
+  adminListWards: () => apiFetch(`${BASE}/admin/ipd/wards`).then(r => r.json()),
+  adminCreateWard: (data: Record<string, unknown>) =>
+    apiFetch(`${BASE}/admin/ipd/wards`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+  adminUpdateWard: (id: string, data: Record<string, unknown>) =>
+    apiFetch(`${BASE}/admin/ipd/wards/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+  adminDeleteWard: (id: string) =>
+    apiFetch(`${BASE}/admin/ipd/wards/${id}`, { method: "DELETE" }).then(r => r.json()),
+
+  adminListTiers: () => apiFetch(`${BASE}/admin/ipd/tiers`).then(r => r.json()),
+  adminCreateTier: (data: Record<string, unknown>) =>
+    apiFetch(`${BASE}/admin/ipd/tiers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+  adminUpdateTier: (id: string, data: Record<string, unknown>) =>
+    apiFetch(`${BASE}/admin/ipd/tiers/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+  adminDeleteTier: (id: string) =>
+    apiFetch(`${BASE}/admin/ipd/tiers/${id}`, { method: "DELETE" }).then(r => r.json()),
+
+  adminListBeds: () => apiFetch(`${BASE}/admin/ipd/beds`).then(r => r.json()),
+  adminCreateBed: (data: Record<string, unknown>) =>
+    apiFetch(`${BASE}/admin/ipd/beds`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+  adminUpdateBed: (id: string, data: Record<string, unknown>) =>
+    apiFetch(`${BASE}/admin/ipd/beds/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+  adminDeleteBed: (id: string) =>
+    apiFetch(`${BASE}/admin/ipd/beds/${id}`, { method: "DELETE" }).then(r => r.json()),
+
   // IPD Progress Notes
   getWardPatients: () =>
     apiFetch(`${BASE}/ipd/ward-patients`).then(r => r.json()),
 
-  listIpdNotes: (patientId?: string) =>
-    apiFetch(`${BASE}/ipd/notes${patientId ? `?patient_id=${patientId}` : ""}`).then(r => r.json()),
+  listIpdNotes: (opts?: { patient_id?: string; admission_id?: string }) => {
+    const qs = new URLSearchParams();
+    if (opts?.admission_id) qs.set("admission_id", opts.admission_id);
+    else if (opts?.patient_id) qs.set("patient_id", opts.patient_id);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return apiFetch(`${BASE}/ipd/notes${suffix}`).then(r => r.json());
+  },
 
-  createIpdNote: (data: { patient_id?: string; bed_id?: string; vitals?: Record<string, unknown>; status_text?: string; assessment?: string; plan?: string }) =>
+  generateProgressNote: async (admissionId: string) => {
+    const res = await apiFetch(`${BASE}/ipd/admissions/${admissionId}/generate-progress`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body as { status_text: string | null; assessment: string | null; plan: string | null; vitals_used: Record<string, unknown> | null; prior_note_count: number };
+  },
+
+  createIpdNote: (data: { patient_id?: string; admission_id?: string; bed_id?: string; vitals?: Record<string, unknown>; status_text?: string; assessment?: string; plan?: string }) =>
     apiFetch(`${BASE}/ipd/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -353,6 +443,13 @@ export const api = {
   // Discharge summaries
   generateDischargeSummary: (sessionId: string) =>
     apiFetch(`${BASE}/discharge/generate/${sessionId}`, { method: "POST" }).then(r => r.json()),
+
+  generateDischargeFromAdmission: async (admissionId: string) => {
+    const res = await apiFetch(`${BASE}/discharge/generate-from-admission/${admissionId}`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    return body as { summary_id: string; existing: boolean; admission_id?: string; discharged_at?: string };
+  },
 
   getDischargeSummary: (summaryId: string) =>
     apiFetch(`${BASE}/discharge/${summaryId}`).then(r => r.json()),

@@ -81,12 +81,17 @@ def _format_echo_reports(reports: list) -> str:
     return "\n".join(lines) if lines else "No impressions recorded"
 
 
+def _naive(dt: datetime | None) -> datetime | None:
+    """Drop tzinfo so DB-stored naive datetimes and datetime.now(utc) can be compared."""
+    return dt.replace(tzinfo=None) if (dt and dt.tzinfo) else dt
+
+
 def _format_dates(admission: datetime | None, discharge: datetime | None) -> str:
     fmt = "%d %b %Y"
     adm = admission.strftime(fmt) if admission else "Unknown"
     dis = discharge.strftime(fmt) if discharge else "Unknown"
     if admission and discharge:
-        days = (discharge - admission).days
+        days = (_naive(discharge) - _naive(admission)).days
         return f"Admitted: {adm} | Discharged: {dis} | Duration: {days} day{'s' if days != 1 else ''}"
     return f"Admitted: {adm} | Discharged: {dis}"
 

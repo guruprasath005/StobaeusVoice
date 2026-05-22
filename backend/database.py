@@ -82,7 +82,8 @@ class DischargeSummary(Base):
     __tablename__ = "discharge_summaries"
     summary_id     = Column(String, primary_key=True)      # DS-0001
     patient_id     = Column(String, nullable=True)          # PT-XXXX (no PII stored)
-    session_id     = Column(String, nullable=True)          # primary consultation
+    session_id     = Column(String, nullable=True)          # source consultation (OPD discharge)
+    admission_id   = Column(String, nullable=True)          # source IPD admission
     doctor_id      = Column(String, nullable=True)
     sections       = Column(JSON, nullable=True)            # {chief_complaint, presenting_history, clinical_course, investigations, procedures, discharge_condition, follow_up, advice}
     icd_codes      = Column(JSON, nullable=True)            # [{code, description}]
@@ -126,15 +127,97 @@ class NurseBedLog(Base):
 
 class IpdNote(Base):
     __tablename__ = "ipd_notes"
-    note_id    = Column(String, primary_key=True)
-    patient_id = Column(String, nullable=True)
-    doctor_id  = Column(String, nullable=True)
-    bed_id     = Column(String, nullable=True)
-    vitals     = Column(JSON, nullable=True)      # {bp, hr, spo2, temp, rr}
-    status_text= Column(Text, nullable=True)      # clinical status free text
-    assessment = Column(Text, nullable=True)
-    plan       = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    note_id      = Column(String, primary_key=True)
+    admission_id = Column(String, nullable=True)    # FK to admissions; null for legacy notes
+    patient_id   = Column(String, nullable=True)
+    doctor_id    = Column(String, nullable=True)
+    bed_id       = Column(String, nullable=True)
+    vitals       = Column(JSON, nullable=True)      # {bp, hr, spo2, temp, rr}
+    status_text  = Column(Text, nullable=True)      # clinical status free text
+    assessment   = Column(Text, nullable=True)
+    plan         = Column(Text, nullable=True)
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# --- IPD configuration & admissions ---
+# Standard Indian HIS admin model: Ward → Bed Type (tier) → Bed.
+# Admins create wards (with floor/colour), define their own bed-tier catalogue
+# (CCU/HDU/Ward/Private/Deluxe + daily charge) and place individual beds.
+
+class Ward(Base):
+    __tablename__ = "wards"
+    ward_id     = Column(String, primary_key=True)        # WARD-A1
+    name        = Column(String, nullable=False)          # "Cardiac CCU"
+    floor       = Column(String, nullable=True)           # "5"
+    color       = Column(String, nullable=True)           # hex for grid view
+    description = Column(Text, nullable=True)
+    is_active   = Column(Boolean, default=True)
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class BedTier(Base):
+    """Admin-defined bed tier catalogue (CCU, HDU, Ward, Private, Deluxe, …)."""
+    __tablename__ = "bed_tiers"
+    tier_id          = Column(String, primary_key=True)   # TIER-CCU
+    name             = Column(String, nullable=False)     # "CCU"
+    daily_charge_inr = Column(Integer, default=0)
+    nurse_ratio      = Column(String, nullable=True)      # "1:1" / "2:1"
+    color            = Column(String, nullable=True)
+    sort_order       = Column(Integer, default=0)
+    is_active        = Column(Boolean, default=True)
+
+
+class Bed(Base):
+    __tablename__ = "beds"
+    bed_id      = Column(String, primary_key=True)        # CCU-01 / B-12
+    label       = Column(String, nullable=True)           # display label if different from id
+    ward_id     = Column(String, nullable=True)           # FK to wards
+    tier_id     = Column(String, nullable=True)           # FK to bed_tiers
+    is_active   = Column(Boolean, default=True)           # admin can decommission beds
+    notes       = Column(Text, nullable=True)             # e.g. "near nurse station", "isolation"
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class Admission(Base):
+    """One inpatient episode. Round notes (IpdNote) hang off admission_id."""
+    __tablename__ = "admissions"
+    admission_id        = Column(String, primary_key=True)   # ADM-0001
+    patient_id          = Column(String, nullable=True)      # PT-XXXX or PT-ANON
+    bed_id              = Column(String, nullable=True)      # current bed (changes on transfer)
+    ward_id_snapshot    = Column(String, nullable=True)      # snapshot at admit
+    tier_id_snapshot    = Column(String, nullable=True)      # snapshot at admit
+    admitting_doctor_id = Column(String, nullable=True)
+    mode                = Column(String, default="standard") # standard / stemi_fast_track
+    transcript          = Column(Text, nullable=True)        # raw dictation (no PII)
+    chief_complaint     = Column(Text, nullable=True)
+    hopi                = Column(Text, nullable=True)        # history of present illness
+    examination         = Column(Text, nullable=True)        # general + cardiac
+    provisional_dx      = Column(Text, nullable=True)
+    soap                = Column(JSON, nullable=True)        # {subjective,objective,assessment,plan}
+    admit_orders        = Column(JSON, nullable=True)        # {drugs, monitoring, npo, access, special}
+    icd_codes           = Column(JSON, nullable=True)        # [{code, description}]
+    status              = Column(String, default="active")   # active / discharged / cancelled
+    admitted_at         = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    discharged_at       = Column(DateTime, nullable=True)
+
+
+class BedTransfer(Base):
+    """Audit trail of bed/tier moves on an admission (CCU → HDU → Ward step-down)."""
+    __tablename__ = "bed_transfers"
+    transfer_id     = Column(String, primary_key=True)
+    admission_id    = Column(String, nullable=False)
+    from_bed_id     = Column(String, nullable=True)
+    from_tier_id    = Column(String, nullable=True)
+    from_ward_id    = Column(String, nullable=True)
+    to_bed_id       = Column(String, nullable=False)
+    to_tier_id      = Column(String, nullable=True)
+    to_ward_id      = Column(String, nullable=True)
+    direction       = Column(String, nullable=True)            # step_down / step_up / lateral
+    reason          = Column(Text, nullable=True)              # one-line clinical justification
+    transferred_by  = Column(String, nullable=True)            # user.id
+    transferred_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class VoiceBotCall(Base):

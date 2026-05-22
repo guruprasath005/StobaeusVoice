@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 from database import init_db
-from routers import patients, consultations, auth, echo, prescriptions, discharge, nurse, ipd, voice_bot, appointments, radiology, streaming
+from routers import patients, consultations, auth, echo, prescriptions, discharge, nurse, ipd, voice_bot, appointments, radiology, streaming, admin_ipd
 
 load_dotenv(override=True)  # .env is authoritative — beat any stale shell vars
 
@@ -26,6 +26,7 @@ app.include_router(prescriptions.router)
 app.include_router(discharge.router)
 app.include_router(nurse.router)
 app.include_router(ipd.router)
+app.include_router(admin_ipd.router)
 app.include_router(voice_bot.router)
 app.include_router(appointments.router)
 app.include_router(radiology.router)
