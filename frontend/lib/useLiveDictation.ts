@@ -42,9 +42,9 @@ export function useLiveDictation(onText: (liveText: string) => void) {
         : "audio/ogg;codecs=opus";
 
       const token = typeof window !== "undefined" ? localStorage.getItem("sv_token") || "" : "";
-      const wsUrl =
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/^http/, "ws") +
-        `/ws/transcribe?token=${encodeURIComponent(token)}`;
+      const wsPort = process.env.NEXT_PUBLIC_WS_PORT || "8000";
+      const wsBase = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${wsPort}`;
+      const wsUrl = `${wsBase}/ws/transcribe?token=${encodeURIComponent(token)}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
