@@ -1,11 +1,12 @@
 """PACS / DICOMweb integration — QIDO-RS search + WADO-RS fetch + pydicom SR parsing."""
 import io
 import logging
-from typing import Optional
+from typing import Optional, List
 
 import httpx
 import pydicom
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -324,5 +325,93 @@ async def pacs_push(
         "study_uid": study_uid,
         "patient_id": patient.patient_id,
         "patient_name": patient.full_name,
-        "viewer_url": f"{orthanc_base}/ui/app/#/viewer?StudyInstanceUIDs={study_uid}",
     }
+
+
+@router.get("/instances")
+def pacs_instances(
+    wado_base: str = Query(...),
+    study_uid: str = Query(...),
+    username: str = Query("orthanc"),
+    password: str = Query("orthanc"),
+    _: User = Depends(get_current_user),
+):
+    """List all instances in a study. Returns [{series_uid, sop_uid, modality, instance_number}]."""
+    base = wado_base.rstrip("/")
+    auth = (username, password)
+
+    try:
+        series_resp = httpx.get(
+            f"{base}/studies/{study_uid}/series",
+            auth=auth, timeout=10,
+            headers={"Accept": "application/dicom+json"},
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, f"PACS unreachable: {exc}")
+
+    if series_resp.status_code not in (200, 204):
+        raise HTTPException(502, f"Series list failed: HTTP {series_resp.status_code}")
+
+    series_list = series_resp.json() if series_resp.status_code == 200 else []
+    instances: List[dict] = []
+
+    for series in series_list:
+        series_uid = series.get("0020000E", {}).get("Value", [""])[0]
+        modality   = series.get("00080060", {}).get("Value", [""])[0]
+        if not series_uid:
+            continue
+        try:
+            inst_resp = httpx.get(
+                f"{base}/studies/{study_uid}/series/{series_uid}/instances",
+                auth=auth, timeout=10,
+                headers={"Accept": "application/dicom+json"},
+            )
+            if inst_resp.status_code != 200:
+                continue
+            for inst in inst_resp.json():
+                sop_uid = inst.get("00080018", {}).get("Value", [""])[0]
+                inst_num = inst.get("00200013", {}).get("Value", [1])[0]
+                if sop_uid:
+                    instances.append({
+                        "series_uid": series_uid,
+                        "sop_uid": sop_uid,
+                        "modality": modality,
+                        "instance_number": inst_num,
+                    })
+        except Exception:
+            continue
+
+    return instances
+
+
+@router.get("/frame")
+def pacs_frame(
+    wado_base: str = Query(...),
+    study_uid: str = Query(...),
+    series_uid: str = Query(...),
+    sop_uid: str = Query(...),
+    username: str = Query("orthanc"),
+    password: str = Query("orthanc"),
+    _: User = Depends(get_current_user),
+):
+    """Proxy a rendered JPEG frame from Orthanc — avoids browser CORS restrictions."""
+    base = wado_base.rstrip("/")
+    url = f"{base}/studies/{study_uid}/series/{series_uid}/instances/{sop_uid}/rendered"
+    try:
+        resp = httpx.get(
+            url,
+            auth=(username, password),
+            timeout=20,
+            params={"quality": 85},
+            headers={"Accept": "image/jpeg"},
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, f"PACS unreachable: {exc}")
+
+    if resp.status_code != 200:
+        raise HTTPException(502, f"Frame fetch failed: HTTP {resp.status_code}")
+
+    return Response(
+        content=resp.content,
+        media_type=resp.headers.get("content-type", "image/jpeg"),
+    )

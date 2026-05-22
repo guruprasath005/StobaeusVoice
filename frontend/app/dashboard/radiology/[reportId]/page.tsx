@@ -238,33 +238,131 @@ function FieldRow({ label, value, onChange, disabled }: {
 
 // ── DICOM viewer ──────────────────────────────────────────────────
 
-const PACS_BASE = "http://31.97.63.234:8042";
+const PACS_BASE    = "http://31.97.63.234:8042";
+const PACS_DICOMWEB = `${PACS_BASE}/dicom-web`;
+
+type Instance = { series_uid: string; sop_uid: string; modality: string; instance_number: number };
+type Study    = { study_uid: string; study_date: string; study_description: string };
+
+function DicomImageGrid({ studyUid }: { studyUid: string }) {
+  const [instances, setInstances] = useState<Instance[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [selected, setSelected]   = useState<Instance | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const token = localStorage.getItem("sv_token") || "";
+    const params = new URLSearchParams({
+      wado_base: PACS_DICOMWEB, study_uid: studyUid,
+      username: "orthanc", password: "orthanc",
+    });
+    fetch(`/api/pacs/instances?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then((data: Instance[]) => {
+        const sorted = data.sort((a, b) => (a.instance_number as number) - (b.instance_number as number));
+        setInstances(sorted);
+        setSelected(sorted[0] || null);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [studyUid]);
+
+  const frameUrl = (inst: Instance) => {
+    const params = new URLSearchParams({
+      wado_base: PACS_DICOMWEB, study_uid: studyUid,
+      series_uid: inst.series_uid, sop_uid: inst.sop_uid,
+      username: "orthanc", password: "orthanc",
+    });
+    const token = typeof window !== "undefined" ? localStorage.getItem("sv_token") || "" : "";
+    return `/api/pacs/frame?${params}&_t=${token}`;
+  };
+
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center bg-black">
+      <div className="flex items-center gap-2 text-gray-400 text-xs">
+        <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+        Loading images…
+      </div>
+    </div>
+  );
+
+  if (!instances.length) return (
+    <div className="flex-1 flex items-center justify-center bg-black">
+      <p className="text-gray-500 text-xs">No images found in this study</p>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-1 min-h-0 bg-black">
+      {/* main image */}
+      <div className="flex-1 flex items-center justify-center p-2 relative">
+        {selected && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={selected.sop_uid}
+            src={frameUrl(selected)}
+            alt={`Instance ${selected.instance_number}`}
+            className="max-w-full max-h-full object-contain"
+            style={{ imageRendering: "pixelated" }}
+          />
+        )}
+      </div>
+      {/* thumbnail strip — only shown when multiple instances */}
+      {instances.length > 1 && (
+        <div className="w-16 flex flex-col gap-1 p-1 overflow-y-auto bg-gray-950">
+          {instances.map(inst => (
+            <button key={inst.sop_uid} onClick={() => setSelected(inst)}
+              className="w-full aspect-square rounded overflow-hidden shrink-0 cursor-pointer"
+              style={{ border: selected?.sop_uid === inst.sop_uid ? "2px solid #e11d48" : "2px solid transparent" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={frameUrl(inst)} alt="" className="w-full h-full object-cover" style={{ imageRendering: "pixelated" }} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DicomViewer({ template, patientName, patientId }: {
   template: string; patientName: string | null; patientId: string | null;
 }) {
   const label = ALL_TEMPLATES.find(t => t.id === template);
-  const [studies, setStudies] = useState<{ study_uid: string; study_date: string; study_description: string }[]>([]);
+  const [studies, setStudies]     = useState<Study[]>([]);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
-  const [manualUid, setManualUid] = useState("");
-  const [showManual, setShowManual] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [manualUid, setManualUid] = useState("");
+  const [showManual, setShowManual] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!patientId || patientId.startsWith("PT-ANON")) return;
+    setSearching(true);
+    api.pacsSearch({ wado_base: PACS_DICOMWEB, patient_id: patientId, username: "orthanc", password: "orthanc" })
+      .then((data) => {
+        const list = (Array.isArray(data) ? data : [])
+          .map((s: Study) => ({ study_uid: s.study_uid, study_date: s.study_date, study_description: s.study_description || "Study" }))
+          .filter((s: Study) => s.study_uid);
+        setStudies(list);
+        if (list.length >= 1) setSelectedUid(list[0].study_uid);
+      })
+      .catch(() => {})
+      .finally(() => setSearching(false));
+  }, [patientId]);
 
   const handleDicomUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !patientId) return;
-    setUploading(true);
-    setUploadError("");
+    setUploading(true); setUploadError("");
     try {
       const form = new FormData();
       form.append("patient_id", patientId);
       form.append("file", file);
       const res = await fetch("/api/pacs/push", { method: "POST", body: form,
         headers: { Authorization: `Bearer ${localStorage.getItem("sv_token") || ""}` } });
-      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       if (data.study_uid) {
         setStudies([{ study_uid: data.study_uid, study_date: "", study_description: "Uploaded" }]);
@@ -278,33 +376,6 @@ function DicomViewer({ template, patientName, patientId }: {
     }
   };
 
-  // Auto-search via backend proxy (avoids CORS)
-  useEffect(() => {
-    if (!patientId || patientId.startsWith("PT-ANON")) return;
-    setSearching(true);
-    api.pacsSearch({
-      wado_base: `${PACS_BASE}/dicom-web`,
-      patient_id: patientId,
-      username: "orthanc",
-      password: "orthanc",
-    })
-      .then((data) => {
-        const list = (Array.isArray(data) ? data : []).map((s: { study_uid: string; study_date: string; study_description: string }) => ({
-          study_uid: s.study_uid,
-          study_date: s.study_date,
-          study_description: s.study_description || "No description",
-        })).filter((s: { study_uid: string }) => s.study_uid);
-        setStudies(list);
-        if (list.length === 1) setSelectedUid(list[0].study_uid);
-      })
-      .catch(() => {})
-      .finally(() => setSearching(false));
-  }, [patientId]);
-
-  const viewerUrl = selectedUid
-    ? `${PACS_BASE}/ui/app/#/viewer?StudyInstanceUIDs=${selectedUid}`
-    : null;
-
   return (
     <div className="flex flex-col flex-1 min-h-0 rounded-xl overflow-hidden" style={{ border: "1.5px dashed #6b6b6b" }}>
       {/* header */}
@@ -316,22 +387,25 @@ function DicomViewer({ template, patientName, patientId }: {
               {patientName}
             </span>
           )}
-          {selectedUid && (
-            <a href={viewerUrl!} target="_blank" rel="noopener noreferrer"
-              className="text-[10px] font-medium px-2 py-0.5 rounded-full cursor-pointer"
-              style={{ background: "#DCFCE7", color: "#15803D", border: "1px solid #86efac" }}>
-              Open full screen ↗
-            </a>
+          {patientId && (
+            <>
+              <input ref={fileInputRef} type="file" accept=".dcm,application/dicom" className="hidden" onChange={handleDicomUpload} />
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full cursor-pointer"
+                style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", opacity: uploading ? 0.6 : 1 }}>
+                {uploading ? "Uploading…" : "+ Upload .dcm"}
+              </button>
+            </>
           )}
         </div>
       </div>
 
-      {/* study picker — shown when multiple studies */}
+      {/* study picker */}
       {studies.length > 1 && (
         <div className="px-3 py-2 flex gap-2 flex-wrap bg-gray-50 shrink-0" style={{ borderBottom: "1px dashed #d4d4d2" }}>
           {studies.map(s => (
             <button key={s.study_uid} onClick={() => setSelectedUid(s.study_uid)}
-              className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition font-medium"
+              className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer font-medium"
               style={{
                 background: selectedUid === s.study_uid ? "#e11d48" : "#f3f4f6",
                 color: selectedUid === s.study_uid ? "white" : "#374151",
@@ -344,66 +418,50 @@ function DicomViewer({ template, patientName, patientId }: {
       )}
 
       {/* viewer area */}
-      <div className="flex-1 relative" style={{ minHeight: 300, background: "#111" }}>
-        {viewerUrl ? (
-          <iframe
-            src={viewerUrl}
-            className="absolute inset-0 w-full h-full border-0"
-            title="DICOM Viewer"
-            allow="fullscreen"
-          />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            {searching ? (
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
-                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                Searching PACS…
-              </div>
-            ) : studies.length === 0 && patientId ? (
-              <div className="flex flex-col items-center gap-2 text-center px-6">
-                <p className="text-gray-400 text-xs">No studies found in PACS for this patient</p>
-                <input ref={fileInputRef} type="file" accept=".dcm,application/dicom"
-                  className="hidden" onChange={handleDicomUpload} />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="text-[10px] font-medium px-3 py-1 rounded-full cursor-pointer"
-                  style={{ background: "#e11d48", color: "white", opacity: uploading ? 0.6 : 1 }}>
-                  {uploading ? "Uploading…" : "Upload .dcm file"}
-                </button>
-                {uploadError && <p className="text-red-400 text-[9px]">{uploadError}</p>}
-                <button onClick={() => setShowManual(v => !v)}
-                  className="text-[10px] text-gray-500 hover:underline cursor-pointer">
-                  Enter Study UID manually
-                </button>
-                {showManual && (
-                  <div className="flex gap-2 mt-1">
-                    <input value={manualUid} onChange={e => setManualUid(e.target.value)}
-                      placeholder="1.2.840..."
-                      className="text-[10px] px-2 py-1 rounded bg-gray-800 text-white border border-gray-600 w-48 outline-none" />
-                    <button onClick={() => { if (manualUid.trim()) setSelectedUid(manualUid.trim()); }}
-                      className="text-[10px] px-2 py-1 rounded bg-[#e11d48] text-white cursor-pointer">
-                      Load
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-center px-6">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-                </svg>
-                <p className="text-gray-500 text-xs">Assign a patient to load DICOM images from PACS</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {selectedUid ? (
+        <DicomImageGrid studyUid={selectedUid} />
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-black" style={{ minHeight: 300 }}>
+          {searching ? (
+            <div className="flex items-center gap-2 text-gray-400 text-xs">
+              <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+              Searching PACS…
+            </div>
+          ) : patientId ? (
+            <div className="flex flex-col items-center gap-2 text-center px-6">
+              <p className="text-gray-400 text-xs">No studies found in PACS for this patient</p>
+              {uploadError && <p className="text-red-400 text-[9px]">{uploadError}</p>}
+              <button onClick={() => setShowManual(v => !v)}
+                className="text-[10px] text-gray-500 hover:underline cursor-pointer">
+                Enter Study UID manually
+              </button>
+              {showManual && (
+                <div className="flex gap-2 mt-1">
+                  <input value={manualUid} onChange={e => setManualUid(e.target.value)}
+                    placeholder="1.2.840…"
+                    className="text-[10px] px-2 py-1 rounded bg-gray-800 text-white border border-gray-600 w-48 outline-none" />
+                  <button onClick={() => { if (manualUid.trim()) setSelectedUid(manualUid.trim()); }}
+                    className="text-[10px] px-2 py-1 rounded bg-[#e11d48] text-white cursor-pointer">
+                    Load
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-center px-6">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+              </svg>
+              <p className="text-gray-500 text-xs">Assign a patient to load DICOM images from PACS</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* toolbar */}
       <div className="flex items-center justify-between px-3 py-2 bg-white shrink-0" style={{ borderTop: "1px dashed #d4d4d2" }}>
         <p className="text-[9px] text-gray-400">
-          {selectedUid ? `Study: ${selectedUid.slice(-12)}…` : "No study loaded"}
+          {selectedUid ? `Study: …${selectedUid.slice(-12)}` : "No study loaded"}
         </p>
         {selectedUid && (
           <a href={`${PACS_BASE}/ui/app/#/study?StudyInstanceUID=${selectedUid}`} target="_blank" rel="noopener noreferrer"
