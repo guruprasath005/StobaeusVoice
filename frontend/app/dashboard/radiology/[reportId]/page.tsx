@@ -435,7 +435,7 @@ function DicomViewer({ template, patientName, patientId }: {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       if (data.study_uid) {
-        setStudies([{ study_uid: data.study_uid, study_date: "", study_description: "Uploaded" }]);
+        setStudies([{ study_uid: data.study_uid, study_date: "", study_description: "Uploaded", modalities: modality }]);
         setSelectedUid(data.study_uid);
       }
     } catch (err: unknown) {
