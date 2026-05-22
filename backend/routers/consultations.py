@@ -386,7 +386,7 @@ def get_consultation(session_id: str, db: Session = Depends(get_db), current_use
     c = db.query(Consultation).filter(Consultation.session_id == session_id).first()
     if not c:
         raise HTTPException(404, "Not found")
-    assert_owner(c.doctor_id, current_user)
+    # Care-team read: any clinician may view a patient's consultation (access is audited).
     log_access(db, current_user.id, "view", "consultation", session_id, c.patient_id)
 
     # Join patient name from DB (only for display, never sent to LLM)

@@ -250,7 +250,7 @@ export default function IpdPage() {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setAdmitOpen("stemi_fast_track")} className="text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5 bg-amber-50 text-[#92400E] hover:bg-amber-100 transition" style={{ border: "1.5px solid #F59E0B" }}>
-              ⚡ STEMI Admit
+              <Icon d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" size={12} /> STEMI Admit
             </button>
             <button onClick={() => setAdmitOpen("standard")} className="text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5 bg-[#e11d48] text-white hover:bg-[#be123c]" style={{ boxShadow: "2px 2px 0 #9f1239" }}>
               <Icon d="M12 5v14M5 12h14" size={12} /> Admit Patient
@@ -272,7 +272,7 @@ export default function IpdPage() {
               <div className="text-xs text-gray-400 py-8 text-center">Loading ward…</div>
             ) : patients.length === 0 ? (
               <div className="text-xs text-gray-400 py-8 text-center bg-white rounded-xl" style={{ border: "1.5px solid #d4d4d2" }}>
-                No active admissions. Tap <span className="font-semibold text-[#9f1239]">Admit Patient</span> to start an IPD episode, or <span className="font-semibold text-[#92400E]">⚡ STEMI Admit</span> for emergency cath lab activation.
+                No active admissions. Tap <span className="font-semibold text-[#9f1239]">Admit Patient</span> to start an IPD episode, or <span className="font-semibold text-[#92400E]">STEMI Admit</span> for emergency cath lab activation.
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
@@ -294,7 +294,7 @@ export default function IpdPage() {
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-bold text-gray-900">{p.bed_label || p.bed_id}</span>
                         <div className="flex items-center gap-1.5">
-                          {p.mode === "stemi_fast_track" && <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">⚡STEMI</span>}
+                          {p.mode === "stemi_fast_track" && <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Icon d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" size={9} />STEMI</span>}
                           <span className="w-2 h-2 rounded-full" style={{ background: color }} />
                         </div>
                       </div>
@@ -351,12 +351,12 @@ export default function IpdPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => setTransferOpen(true)} title="Transfer bed"
-                    className="text-[10px] font-semibold text-[#9f1239] bg-[#ffe4e6] px-2 py-1 rounded-lg hover:bg-[#fecdd3] cursor-pointer">
-                    ⇄ Transfer
+                    className="text-[10px] font-semibold text-[#9f1239] bg-[#ffe4e6] px-2 py-1 rounded-lg hover:bg-[#fecdd3] cursor-pointer flex items-center gap-1">
+                    <Icon d="M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" size={11} /> Transfer
                   </button>
                   <button onClick={() => setDischargeConfirm(true)} title="Discharge patient"
-                    className="text-[10px] font-semibold text-[#15803D] bg-[#DCFCE7] px-2 py-1 rounded-lg hover:bg-[#BBF7D0] cursor-pointer">
-                    🏥 Discharge
+                    className="text-[10px] font-semibold text-[#15803D] bg-[#DCFCE7] px-2 py-1 rounded-lg hover:bg-[#BBF7D0] cursor-pointer flex items-center gap-1">
+                    <Icon d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" size={11} /> Discharge
                   </button>
                   <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer text-lg ml-1">×</button>
                 </div>
@@ -398,11 +398,16 @@ export default function IpdPage() {
                         <div className="mt-1 pt-1.5" style={{ borderTop: "1px dashed #ececea" }}>
                           <p className="text-[9px] text-gray-400 mb-0.5">Bed timeline · {transfers.length} move{transfers.length === 1 ? "" : "s"}</p>
                           {transfers.slice(0, 4).map(t => {
-                            const arrow = t.direction === "step_down" ? "⬇" : t.direction === "step_up" ? "⬆" : "→";
+                            const dirPath = t.direction === "step_down" ? "M12 5v14M19 12l-7 7-7-7" : t.direction === "step_up" ? "M12 19V5M5 12l7-7 7 7" : "M5 12h14M12 5l7 7-7 7";
                             const color = t.direction === "step_down" ? "#15803D" : t.direction === "step_up" ? "#9f1239" : "#6B7280";
                             return (
                               <div key={t.transfer_id} className="text-[10px] mb-0.5">
-                                <span className="font-mono" style={{ color }}>{arrow} {t.from_bed_id || "—"} ({t.from_tier_name || "—"}) → {t.to_bed_id} ({t.to_tier_name || "—"})</span>
+                                <span className="font-mono inline-flex items-center gap-1" style={{ color }}>
+                                  <Icon d={dirPath} size={10} />
+                                  {t.from_bed_id || "—"} ({t.from_tier_name || "—"})
+                                  <Icon d="M5 12h14M12 5l7 7-7 7" size={9} />
+                                  {t.to_bed_id} ({t.to_tier_name || "—"})
+                                </span>
                                 <span className="text-gray-400 ml-1">· {relTime(t.transferred_at)}</span>
                                 {t.reason && <p className="text-[9px] text-gray-500 italic ml-3">{t.reason}</p>}
                               </div>
@@ -462,7 +467,7 @@ export default function IpdPage() {
               <button onClick={generateDraft} disabled={generating}
                 className="w-full py-2 text-[11px] font-semibold bg-white text-[#9f1239] rounded-lg cursor-pointer disabled:opacity-50 hover:bg-[#fff1f2] transition flex items-center justify-center gap-1.5"
                 style={{ border: "1.5px dashed #e11d48" }}>
-                {generating ? "Drafting…" : "✨ Generate today's note from prior notes + vitals"}
+                {generating ? "Drafting…" : <><Icon d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z" size={12} /> Generate today&apos;s note from prior notes + vitals</>}
               </button>
 
               {/* Note fields */}

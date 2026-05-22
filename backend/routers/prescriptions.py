@@ -73,10 +73,12 @@ class GenerateRxRequest(BaseModel):
 @router.get("")
 def list_prescriptions(patient_id: Optional[str] = None, limit: int = 40, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     q = db.query(Prescription)
-    if current_user.role != "admin":
-        q = q.filter(Prescription.doctor_id == current_user.id)
     if patient_id:
+        # Patient chart view — show the whole care team's prescriptions for this patient.
         q = q.filter(Prescription.patient_id == patient_id)
+    elif current_user.role != "admin":
+        # "My prescriptions" list — scope to the current doctor.
+        q = q.filter(Prescription.doctor_id == current_user.id)
     rows = q.order_by(Prescription.created_at.desc()).limit(limit).all()
 
     result = []
@@ -118,7 +120,7 @@ def get_prescription(rx_id: str, db: Session = Depends(get_db), current_user: Us
     rx = db.query(Prescription).filter(Prescription.rx_id == rx_id).first()
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
-    assert_owner(rx.doctor_id, current_user)
+    # Care-team read: any clinician may view a patient's prescription (access is audited).
     log_access(db, current_user.id, "view", "prescription", rx_id, rx.patient_id)
     patient = db.query(Patient).filter(Patient.patient_id == rx.patient_id).first() if rx.patient_id else None
     return {

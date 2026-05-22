@@ -40,6 +40,14 @@ interface AdmissionDraft {
 const inputCls = "w-full px-2.5 py-1.5 text-xs rounded-lg outline-none focus:ring-2 focus:ring-[#e11d48] bg-white";
 const inputSty = { border: "1.5px solid #d4d4d2" };
 
+function Icon({ d, size = 13 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <path d={d} />
+    </svg>
+  );
+}
+
 export default function AdmitPatientModal({
   initialMode = "standard",
   onClose,
@@ -75,7 +83,7 @@ export default function AdmitPatientModal({
     setStep("bed");
   };
 
-  // ── step: bed → create admission ────────────────────────
+  // -- step: bed -> create admission
   const confirmBed = async () => {
     if (!bedId) return;
     setBusy(true); setErr("");
@@ -87,7 +95,7 @@ export default function AdmitPatientModal({
     finally { setBusy(false); }
   };
 
-  // ── step: dictate → generate ────────────────────────────
+  // -- step: dictate -> generate
   const generate = async () => {
     if (!adm) return;
     if (!transcript.trim() && mode !== "stemi_fast_track") {
@@ -103,7 +111,7 @@ export default function AdmitPatientModal({
     finally { setBusy(false); }
   };
 
-  // ── step: review → approve (just patches edits + close) ─
+  // -- step: review -> approve (just patches edits + close)
   const approve = async () => {
     if (!adm) return;
     setBusy(true); setErr("");
@@ -166,7 +174,10 @@ export default function AdmitPatientModal({
               ))}
             </div>
             {mode === "stemi_fast_track" && (
-              <p className="text-[11px] text-[#9f1239] mt-2">⚡ STEMI protocol pre-fills (Aspirin 325mg, Clopidogrel 600mg, Heparin, NPO, cath lab activation) will be auto-loaded.</p>
+              <p className="text-[11px] text-[#9f1239] mt-2 flex items-start gap-1.5">
+                <Icon d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" size={12} />
+                <span>STEMI protocol pre-fills (Aspirin 325mg, Clopidogrel 600mg, Heparin, NPO, cath lab activation) will be auto-loaded.</span>
+              </p>
             )}
           </div>
         )}
@@ -211,13 +222,13 @@ export default function AdmitPatientModal({
                 })}
               </div>
               {catalogue.beds.length === 0 && (
-                <p className="text-xs text-gray-400 py-6 text-center">No beds configured. Ask the admin to add beds in Admin → IPD Setup.</p>
+                <p className="text-xs text-gray-400 py-6 text-center">No beds configured. Ask the admin to add beds in Admin &gt; IPD Setup.</p>
               )}
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={cancelAndClose} className="text-xs text-gray-500 px-3 py-2 hover:underline cursor-pointer">Cancel</button>
                 <button onClick={confirmBed} disabled={!bedId || busy}
-                  className="bg-[#e11d48] text-white text-xs font-semibold px-4 py-2 rounded-lg disabled:opacity-50 cursor-pointer" style={{ boxShadow: "2px 2px 0 #9f1239" }}>
-                  {busy ? "Admitting…" : "Continue →"}
+                  className="bg-[#e11d48] text-white text-xs font-semibold px-4 py-2 rounded-lg disabled:opacity-50 cursor-pointer inline-flex items-center gap-1" style={{ boxShadow: "2px 2px 0 #9f1239" }}>
+                  {busy ? "Admitting…" : <>Continue <Icon d="M9 18l6-6-6-6" size={12} /></>}
                 </button>
               </div>
             </>
@@ -231,9 +242,9 @@ export default function AdmitPatientModal({
                 ? "Optional — STEMI protocol will pre-fill. Add any patient-specific findings (chest pain duration, prior MI, contraindications, ECG findings)."
                 : "Patient is a 58-year-old male presenting with 2 days of progressive exertional chest pain. PMH significant for hypertension on amlodipine. Exam shows BP 150/90, HR 92, regular. S1 S2 normal, no murmurs. ECG shows T-wave inversion in V4-V6. Troponin pending. Admit to CCU. Start aspirin, clopidogrel, atorvastatin, IV heparin per ACS protocol. NPO. Cardiac monitoring. Echo in morning."} />
               <div className="flex justify-between items-center pt-2">
-                <button onClick={() => setStep("bed")} className="text-xs text-gray-500 hover:underline cursor-pointer">← Back</button>
-                <button onClick={generate} disabled={busy} className="bg-[#e11d48] text-white text-xs font-semibold px-4 py-2 rounded-lg disabled:opacity-50 cursor-pointer" style={{ boxShadow: "2px 2px 0 #9f1239" }}>
-                  {busy ? "Extracting…" : "Generate Note →"}
+                <button onClick={() => setStep("bed")} className="text-xs text-gray-500 hover:underline cursor-pointer inline-flex items-center gap-1"><Icon d="M15 18l-6-6 6-6" size={12} /> Back</button>
+                <button onClick={generate} disabled={busy} className="bg-[#e11d48] text-white text-xs font-semibold px-4 py-2 rounded-lg disabled:opacity-50 cursor-pointer inline-flex items-center gap-1" style={{ boxShadow: "2px 2px 0 #9f1239" }}>
+                  {busy ? "Extracting…" : <>Generate Note <Icon d="M9 18l6-6-6-6" size={12} /></>}
                 </button>
               </div>
             </>
@@ -272,11 +283,11 @@ export default function AdmitPatientModal({
                   <p key={i} className="text-[11px] text-gray-700 font-mono">• {d.drug} {d.dose} {d.route || ""} {d.freq || ""}</p>
                 ))}
                 {adm.admit_orders?.monitoring?.map((m, i) => (
-                  <p key={i} className="text-[11px] text-gray-700">📊 {m}</p>
+                  <p key={i} className="text-[11px] text-gray-700 flex items-start gap-1.5"><Icon d="M22 12h-4l-3 9L9 3l-3 9H2" size={11} /> <span>{m}</span></p>
                 ))}
-                {adm.admit_orders?.diet && <p className="text-[11px] text-gray-700">🍽 {adm.admit_orders.diet}</p>}
-                {adm.admit_orders?.access && <p className="text-[11px] text-gray-700">💉 {adm.admit_orders.access}</p>}
-                {adm.admit_orders?.special && <p className="text-[11px] text-[#9f1239] font-semibold mt-1">⚠ {adm.admit_orders.special}</p>}
+                {adm.admit_orders?.diet && <p className="text-[11px] text-gray-700 flex items-start gap-1.5"><Icon d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3z" size={11} /> <span>{adm.admit_orders.diet}</span></p>}
+                {adm.admit_orders?.access && <p className="text-[11px] text-gray-700 flex items-start gap-1.5"><Icon d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" size={11} /> <span>{adm.admit_orders.access}</span></p>}
+                {adm.admit_orders?.special && <p className="text-[11px] text-[#9f1239] font-semibold mt-1 flex items-start gap-1.5"><Icon d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" size={11} /> <span>{adm.admit_orders.special}</span></p>}
               </div>
 
               {adm.icd_codes && adm.icd_codes.length > 0 && (
@@ -288,9 +299,9 @@ export default function AdmitPatientModal({
               )}
 
               <div className="flex justify-between items-center pt-2 sticky bottom-0 bg-white py-2">
-                <button onClick={() => setStep("dictate")} className="text-xs text-gray-500 hover:underline cursor-pointer">← Edit dictation</button>
-                <button onClick={approve} disabled={busy} className="bg-[#e11d48] text-white text-xs font-semibold px-5 py-2 rounded-lg disabled:opacity-50 cursor-pointer" style={{ boxShadow: "2px 2px 0 #9f1239" }}>
-                  {busy ? "Saving…" : "Approve & Admit ✓"}
+                <button onClick={() => setStep("dictate")} className="text-xs text-gray-500 hover:underline cursor-pointer inline-flex items-center gap-1"><Icon d="M15 18l-6-6 6-6" size={12} /> Edit dictation</button>
+                <button onClick={approve} disabled={busy} className="bg-[#e11d48] text-white text-xs font-semibold px-5 py-2 rounded-lg disabled:opacity-50 cursor-pointer inline-flex items-center gap-1" style={{ boxShadow: "2px 2px 0 #9f1239" }}>
+                  {busy ? "Saving…" : <>Approve &amp; Admit <Icon d="M20 6L9 17l-5-5" size={12} /></>}
                 </button>
               </div>
             </>
@@ -308,7 +319,7 @@ function DictateField({ value, onValue, placeholder }: { value: string; onValue:
       <div className="flex items-center justify-between mb-1">
         <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Admission Dictation</label>
         <button onClick={toggle} className={`text-[10px] font-medium px-2 py-1 rounded-lg cursor-pointer flex items-center gap-1 ${recording ? "bg-red-50 text-red-500 border border-red-200" : "bg-[#ffe4e6] text-[#9f1239]"}`}>
-          {recording ? <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Stop</> : "🎤 Dictate"}
+          {recording ? <><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Stop</> : <><Icon d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" size={11} /> Dictate</>}
         </button>
       </div>
       <textarea value={value} onChange={e => onValue(e.target.value)} placeholder={placeholder}

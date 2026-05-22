@@ -31,10 +31,12 @@ def list_reports(patient_id: Optional[str] = None, template: Optional[str] = Non
                  skip: int = 0, limit: int = 30,
                  db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     q = db.query(RadiologyReport)
-    if current_user.role != "admin":
-        q = q.filter(RadiologyReport.doctor_id == current_user.id)
     if patient_id:
+        # Patient chart view — show the whole care team's reports for this patient.
         q = q.filter(RadiologyReport.patient_id == patient_id)
+    elif current_user.role != "admin":
+        # "My reports" list — scope to the current doctor.
+        q = q.filter(RadiologyReport.doctor_id == current_user.id)
     if template:
         q = q.filter(RadiologyReport.template == template)
     reports = q.order_by(desc(RadiologyReport.created_at)).offset(skip).limit(limit).all()
@@ -76,11 +78,11 @@ def create_report(req: CreateReportRequest,
 
 
 @router.get("/reports/{report_id}")
-def get_report(report_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_report(report_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     r = db.query(RadiologyReport).filter(RadiologyReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
-    assert_owner(r.doctor_id, current_user)
+    # Care-team read: any clinician may view a patient's radiology report.
     patient = db.query(Patient).filter(Patient.patient_id == r.patient_id).first() if r.patient_id else None
     return {
         "report_id": r.report_id, "patient_id": r.patient_id,

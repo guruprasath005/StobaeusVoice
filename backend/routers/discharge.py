@@ -35,7 +35,6 @@ async def generate_from_consultation(session_id: str, db: Session = Depends(get_
     # Return existing summary if already generated for this session
     existing = db.query(DischargeSummary).filter(DischargeSummary.session_id == session_id).first()
     if existing:
-        assert_owner(existing.doctor_id, current_user)
         return {"summary_id": existing.summary_id, "existing": True}
 
     consultation = db.query(Consultation).filter(Consultation.session_id == session_id).first()
@@ -112,7 +111,6 @@ async def generate_from_admission(admission_id: str, db: Session = Depends(get_d
     """
     existing = db.query(DischargeSummary).filter(DischargeSummary.admission_id == admission_id).first()
     if existing:
-        assert_owner(existing.doctor_id, current_user)
         return {"summary_id": existing.summary_id, "existing": True}
 
     adm = db.query(Admission).filter(Admission.admission_id == admission_id).first()
@@ -231,7 +229,7 @@ def get_summary(summary_id: str, db: Session = Depends(get_db), current_user: Us
     ds = db.query(DischargeSummary).filter(DischargeSummary.summary_id == summary_id).first()
     if not ds:
         raise HTTPException(404, "Discharge summary not found")
-    assert_owner(ds.doctor_id, current_user)
+    # Care-team read: any clinician may view a patient's discharge summary (access is audited).
     log_access(db, current_user.id, "view", "discharge", summary_id, ds.patient_id)
 
     patient = db.query(Patient).filter(Patient.patient_id == ds.patient_id).first() if ds.patient_id else None

@@ -60,11 +60,15 @@ class IpdNoteRequest(BaseModel):
 def list_notes(patient_id: Optional[str] = None, admission_id: Optional[str] = None,
                skip: int = 0, limit: int = 30,
                db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    q = db.query(IpdNote).filter(IpdNote.doctor_id == current_user.id)
+    q = db.query(IpdNote)
     if admission_id:
+        # Admission/patient chart view — show the whole care team's notes.
         q = q.filter(IpdNote.admission_id == admission_id)
     elif patient_id:
         q = q.filter(IpdNote.patient_id == patient_id)
+    elif current_user.role != "admin":
+        # "My notes" list — scope to the current doctor.
+        q = q.filter(IpdNote.doctor_id == current_user.id)
     notes = q.order_by(desc(IpdNote.created_at)).offset(skip).limit(limit).all()
     result = []
     for n in notes:
@@ -105,11 +109,11 @@ def create_note(req: IpdNoteRequest, db: Session = Depends(get_db), current_user
 
 
 @router.get("/notes/{note_id}")
-def get_note(note_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_note(note_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     note = db.query(IpdNote).filter(IpdNote.note_id == note_id).first()
     if not note:
         raise HTTPException(404, "Note not found")
-    assert_owner(note.doctor_id, current_user)
+    # Care-team read: any clinician may view a patient's IPD progress note.
     patient = db.query(Patient).filter(Patient.patient_id == note.patient_id).first() if note.patient_id else None
     return {
         "note_id": note.note_id,
@@ -261,11 +265,11 @@ def list_admissions(status: Optional[str] = "active", db: Session = Depends(get_
 
 
 @router.get("/admissions/{admission_id}")
-def get_admission(admission_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_admission(admission_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     adm = db.query(Admission).filter(Admission.admission_id == admission_id).first()
     if not adm:
         raise HTTPException(404, "Admission not found")
-    assert_owner(adm.admitting_doctor_id, current_user)
+    # Care-team read: any clinician may view an admission record.
     return _admission_to_dict(adm, db)
 
 
@@ -423,10 +427,10 @@ def transfer_admission(admission_id: str, req: TransferRequest, db: Session = De
 
 
 @router.get("/admissions/{admission_id}/transfers")
-def list_transfers(admission_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_transfers(admission_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     adm = db.query(Admission).filter(Admission.admission_id == admission_id).first()
     if not adm: raise HTTPException(404, "Admission not found")
-    assert_owner(adm.admitting_doctor_id, current_user)
+    # Care-team read: any clinician may view an admission's bed-transfer history.
     transfers = db.query(BedTransfer).filter(BedTransfer.admission_id == admission_id).order_by(desc(BedTransfer.transferred_at)).all()
     out = []
     for t in transfers:

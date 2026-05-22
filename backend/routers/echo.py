@@ -54,10 +54,12 @@ def create_report(req: CreateReportRequest, db: Session = Depends(get_db), curre
 @router.get("/reports")
 def list_reports(patient_id: Optional[str] = None, limit: int = 30, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(EchoReport)
-    if current_user.role != "admin":
-        query = query.filter(EchoReport.doctor_id == current_user.id)
     if patient_id:
+        # Patient chart view — show the whole care team's reports for this patient.
         query = query.filter(EchoReport.patient_id == patient_id)
+    elif current_user.role != "admin":
+        # "My reports" list — scope to the current doctor.
+        query = query.filter(EchoReport.doctor_id == current_user.id)
     reports = query.order_by(EchoReport.created_at.desc()).limit(limit).all()
 
     result = []
@@ -84,11 +86,11 @@ def list_reports(patient_id: Optional[str] = None, limit: int = 30, db: Session 
 
 
 @router.get("/reports/{report_id}")
-def get_report(report_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_report(report_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     r = db.query(EchoReport).filter(EchoReport.report_id == report_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
-    assert_owner(r.doctor_id, current_user)
+    # Care-team read: any clinician may view a patient's echo/cath report.
     patient_display = None
     if r.patient_id and not r.patient_id.startswith("PT-ANON"):
         p = db.query(Patient).filter(Patient.patient_id == r.patient_id).first()

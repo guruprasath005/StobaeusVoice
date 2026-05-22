@@ -8,6 +8,14 @@ interface CatWard { ward_id: string; name: string }
 interface CatTier { tier_id: string; name: string; color: string | null; daily_charge_inr: number; sort_order: number }
 interface Catalogue { wards: CatWard[]; tiers: CatTier[]; beds: CatBed[] }
 
+function Icon({ d, size = 13 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <path d={d} />
+    </svg>
+  );
+}
+
 export default function TransferBedModal({
   admissionId,
   currentBedId,
@@ -93,7 +101,9 @@ export default function TransferBedModal({
                       <div className="flex items-center justify-between mb-0.5">
                         <p className="text-xs font-bold font-mono text-gray-900">{b.label}</p>
                         {!disabled && (
-                          <span className="text-[9px]">{direction === "step_down" ? "⬇" : direction === "step_up" ? "⬆" : "→"}</span>
+                          <span style={{ color: direction === "step_down" ? "#15803D" : direction === "step_up" ? "#9f1239" : "#6B7280" }}>
+                            <Icon size={11} d={direction === "step_down" ? "M12 5v14M19 12l-7 7-7-7" : direction === "step_up" ? "M12 19V5M5 12l7-7 7 7" : "M5 12h14M12 5l7 7-7 7"} />
+                          </span>
                         )}
                       </div>
                       <p className="text-[10px] text-gray-500">{tier?.name || "—"}</p>
