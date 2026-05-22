@@ -238,11 +238,21 @@ function FieldRow({ label, value, onChange, disabled }: {
 
 // ── DICOM viewer ──────────────────────────────────────────────────
 
-const PACS_BASE    = "http://31.97.63.234:8042";
+const PACS_BASE     = "http://31.97.63.234:8042";
 const PACS_DICOMWEB = `${PACS_BASE}/dicom-web`;
 
+// Map each report template to its DICOM modality code for PACS filtering
+const TEMPLATE_MODALITY: Record<string, string> = {
+  chest_xray:          "CR",   // Computed Radiography
+  ct_cardiac:          "CT",
+  ct_pulmonary_angio:  "CT",
+  cardiac_mri:         "MR",
+  lipid_profile:       "",     // lab — no imaging
+  hba1c:               "",     // lab — no imaging
+};
+
 type Instance = { series_uid: string; sop_uid: string; modality: string; instance_number: number };
-type Study    = { study_uid: string; study_date: string; study_description: string };
+type Study    = { study_uid: string; study_date: string; study_description: string; modalities: string };
 
 // Fetches a DICOM frame with auth header and returns a blob URL
 function useBlobFrame(inst: Instance | null, studyUid: string): string | null {
@@ -270,14 +280,18 @@ function useBlobFrame(inst: Instance | null, studyUid: string): string | null {
   return blobUrl;
 }
 
-function DicomImageGrid({ studyUid }: { studyUid: string }) {
+function DicomImageGrid({ studyUid, onFullScreen }: { studyUid: string; onFullScreen: () => void }) {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading]     = useState(true);
   const [selected, setSelected]   = useState<Instance | null>(null);
+  const [idx, setIdx]             = useState(0);
   const mainBlobUrl = useBlobFrame(selected, studyUid);
 
   useEffect(() => {
     setLoading(true);
+    setInstances([]);
+    setSelected(null);
+    setIdx(0);
     const token = localStorage.getItem("sv_token") || "";
     const params = new URLSearchParams({
       wado_base: PACS_DICOMWEB, study_uid: studyUid,
@@ -289,10 +303,17 @@ function DicomImageGrid({ studyUid }: { studyUid: string }) {
         const sorted = data.sort((a, b) => (a.instance_number as number) - (b.instance_number as number));
         setInstances(sorted);
         setSelected(sorted[0] || null);
+        setIdx(0);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [studyUid]);
+
+  const goTo = (i: number) => {
+    const clamped = Math.max(0, Math.min(instances.length - 1, i));
+    setIdx(clamped);
+    setSelected(instances[clamped]);
+  };
 
   if (loading) return (
     <div className="flex-1 flex items-center justify-center bg-black">
@@ -310,33 +331,51 @@ function DicomImageGrid({ studyUid }: { studyUid: string }) {
   );
 
   return (
-    <div className="flex flex-1 min-h-0 bg-black">
+    <div className="flex flex-col flex-1 min-h-0 bg-black relative">
+      {/* overlay controls */}
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+        {instances.length > 1 && (
+          <span className="text-[9px] text-gray-400 bg-black/60 px-2 py-0.5 rounded">
+            {idx + 1} / {instances.length}
+          </span>
+        )}
+        <button onClick={onFullScreen}
+          className="text-[9px] font-medium px-2 py-0.5 rounded cursor-pointer"
+          style={{ background: "#e11d48", color: "white" }}
+          title="Full screen DICOM viewer">
+          ⛶ Full screen
+        </button>
+      </div>
+
       {/* main image */}
-      <div className="flex-1 flex items-center justify-center p-2">
+      <div className="flex-1 flex items-center justify-center p-2 relative">
         {mainBlobUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={selected?.sop_uid}
-            src={mainBlobUrl}
-            alt="DICOM"
-            className="max-w-full max-h-full object-contain"
-          />
+          <img key={selected?.sop_uid} src={mainBlobUrl} alt="DICOM"
+            className="max-w-full max-h-full object-contain select-none"
+            style={{ imageRendering: "auto" }} />
         ) : (
           <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
         )}
       </div>
-      {/* thumbnail strip — only shown when multiple instances */}
+
+      {/* prev/next nav — only for multi-instance */}
       {instances.length > 1 && (
-        <div className="w-16 flex flex-col gap-1 p-1 overflow-y-auto bg-gray-950">
-          {instances.map(inst => (
-            <button key={inst.sop_uid} onClick={() => setSelected(inst)}
-              className="w-full aspect-square rounded overflow-hidden shrink-0 cursor-pointer flex items-center justify-center bg-gray-800"
-              style={{ border: selected?.sop_uid === inst.sop_uid ? "2px solid #e11d48" : "2px solid transparent" }}>
-              <span className="text-[8px] text-gray-400">{inst.instance_number}</span>
-            </button>
-          ))}
+        <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between pointer-events-none px-1">
+          <button onClick={() => goTo(idx - 1)} disabled={idx === 0}
+            className="pointer-events-auto w-6 h-10 rounded bg-black/50 text-white text-xs disabled:opacity-20 cursor-pointer">‹</button>
+          <button onClick={() => goTo(idx + 1)} disabled={idx === instances.length - 1}
+            className="pointer-events-auto w-6 h-10 rounded bg-black/50 text-white text-xs disabled:opacity-20 cursor-pointer">›</button>
         </div>
       )}
+
+      {/* modality / instance info bar */}
+      <div className="shrink-0 flex items-center justify-between px-3 py-1 bg-gray-950">
+        <span className="text-[9px] text-gray-400 font-mono">
+          {selected?.modality || "—"} · Instance {selected?.instance_number ?? "—"}
+        </span>
+        <span className="text-[9px] text-gray-600 font-mono">{studyUid.slice(-16)}</span>
+      </div>
     </div>
   );
 }
@@ -344,30 +383,44 @@ function DicomImageGrid({ studyUid }: { studyUid: string }) {
 function DicomViewer({ template, patientName, patientId }: {
   template: string; patientName: string | null; patientId: string | null;
 }) {
-  const label = ALL_TEMPLATES.find(t => t.id === template);
-  const [studies, setStudies]     = useState<Study[]>([]);
+  const label        = ALL_TEMPLATES.find(t => t.id === template);
+  const modality     = TEMPLATE_MODALITY[template] ?? "";
+  const router       = useRouter();
+
+  const [studies, setStudies]         = useState<Study[]>([]);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [searching, setSearching]     = useState(false);
+  const [uploading, setUploading]     = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [manualUid, setManualUid] = useState("");
-  const [showManual, setShowManual] = useState(false);
+  const [manualUid, setManualUid]     = useState("");
+  const [showManual, setShowManual]   = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Re-search whenever patient OR template (modality) changes
   useEffect(() => {
-    if (!patientId || patientId.startsWith("PT-ANON")) return;
-    setSearching(true);
-    api.pacsSearch({ wado_base: PACS_DICOMWEB, patient_id: patientId, username: "orthanc", password: "orthanc" })
+    if (!patientId || patientId.startsWith("PT-ANON") || !modality) {
+      setStudies([]); setSelectedUid(null); return;
+    }
+    setStudies([]); setSelectedUid(null); setSearching(true);
+    api.pacsSearch({
+      wado_base: PACS_DICOMWEB, patient_id: patientId,
+      modality,                               // filter by CR / CT / MR etc.
+      username: "orthanc", password: "orthanc",
+    })
       .then((data) => {
         const list = (Array.isArray(data) ? data : [])
-          .map((s: Study) => ({ study_uid: s.study_uid, study_date: s.study_date, study_description: s.study_description || "Study" }))
+          .map((s: Study) => ({
+            study_uid: s.study_uid, study_date: s.study_date,
+            study_description: s.study_description || `${modality} Study`,
+            modalities: s.modalities,
+          }))
           .filter((s: Study) => s.study_uid);
         setStudies(list);
         if (list.length >= 1) setSelectedUid(list[0].study_uid);
       })
       .catch(() => {})
       .finally(() => setSearching(false));
-  }, [patientId]);
+  }, [patientId, modality]);
 
   const handleDicomUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -436,7 +489,10 @@ function DicomViewer({ template, patientName, patientId }: {
 
       {/* viewer area */}
       {selectedUid ? (
-        <DicomImageGrid studyUid={selectedUid} />
+        <DicomImageGrid
+          studyUid={selectedUid}
+          onFullScreen={() => router.push(`/dashboard/pacs-viewer?study=${encodeURIComponent(selectedUid)}&modality=${modality}`)}
+        />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-black" style={{ minHeight: 300 }}>
           {searching ? (
@@ -477,14 +533,23 @@ function DicomViewer({ template, patientName, patientId }: {
 
       {/* toolbar */}
       <div className="flex items-center justify-between px-3 py-2 bg-white shrink-0" style={{ borderTop: "1px dashed #d4d4d2" }}>
-        <p className="text-[9px] text-gray-400">
-          {selectedUid ? `Study: …${selectedUid.slice(-12)}` : "No study loaded"}
+        <p className="text-[9px] text-gray-400 font-mono">
+          {selectedUid ? `Study: …${selectedUid.slice(-16)}` : modality ? `No ${modality} study found` : "No imaging for this report type"}
         </p>
-        {selectedUid && (
-          <a href={`${PACS_BASE}/ui/app/#/study?StudyInstanceUID=${selectedUid}`} target="_blank" rel="noopener noreferrer"
-            className="text-[9px] text-[#e11d48] hover:underline cursor-pointer">
-            Open in Orthanc Explorer ↗
-          </a>
+        {studies.length > 1 && (
+          <div className="flex gap-1">
+            {studies.map((s, i) => (
+              <button key={s.study_uid} onClick={() => setSelectedUid(s.study_uid)}
+                className="text-[9px] px-2 py-0.5 rounded cursor-pointer"
+                style={{
+                  background: selectedUid === s.study_uid ? "#e11d48" : "#f3f4f6",
+                  color: selectedUid === s.study_uid ? "white" : "#374151",
+                  border: "1px solid " + (selectedUid === s.study_uid ? "#be123c" : "#d1d5db"),
+                }}>
+                Study {i + 1}
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>
